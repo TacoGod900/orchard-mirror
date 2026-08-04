@@ -1,0 +1,20 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Orchard.Core/Orchard.Core.csproj" />
+    <Project Path="src/Orchard.Compiler/Orchard.Compiler.csproj" />
+    <Project Path="src/Orchard.Runtime.Windows/Orchard.Runtime.Windows.csproj" />
+    <Project Path="src/Orchard.Cli/Orchard.Cli.csproj" />
+    <Project Path="src/Orchard.Protocol/Orchard.Protocol.csproj" />
+    <Project Path="src/Orchard.Transport.Windows/Orchard.Transport.Windows.csproj" />
+    <Project Path="src/Orchard.NativeHost.Windows/Orchard.NativeHost.Windows.csproj" />
+    <Project Path="src/Orchard.Tooling.Protocol/Orchard.Tooling.Protocol.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Orchard.Tests/Orchard.Tests.csproj" />
+    <Project Path="tests/Orchard.Protocol.Tests/Orchard.Protocol.Tests.csproj" />
+    <Project Path="tests/Orchard.Transport.Windows.Tests/Orchard.Transport.Windows.Tests.csproj" />
+    <Project Path="tests/Orchard.NativeHost.Windows.Tests/Orchard.NativeHost.Windows.Tests.csproj" />
+    <Project Path="tests/Orchard.Runtime.Windows.Tests/Orchard.Runtime.Windows.Tests.csproj" />
+    <Project Path="tests/Orchard.Tooling.Protocol.Tests/Orchard.Tooling.Protocol.Tests.csproj" />
+  </Folder>
+</Solution>

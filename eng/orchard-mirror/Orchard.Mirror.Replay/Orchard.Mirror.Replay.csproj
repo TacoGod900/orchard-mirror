@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../../src/Orchard.Mirror.Media/Orchard.Mirror.Media.csproj" />
+    <ProjectReference Include="../../../src/Orchard.Mirror.Video.Windows/Orchard.Mirror.Video.Windows.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,1778 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Orchard.Mirror.Shell</name>
+    </assembly>
+    <members>
+        <member name="T:Orchard.Mirror.Shell.AnimationNeed">
+            <summary>Everything that could currently be moving on the setup surface.</summary>
+            <param name="Sliding">Content is sliding in from a page change.</param>
+            <param name="Revealing">The surface is fading away to uncover the mirror.</param>
+            <param name="Spinning">A ring is turning because Orchard is genuinely working.</param>
+            <param name="HoverSettling">A hover highlight has not finished easing to its target.</param>
+            <param name="Holding">A presentation is counting down to hand the screen back.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.AnimationNeed.#ctor(System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean)">
+            <summary>Everything that could currently be moving on the setup surface.</summary>
+            <param name="Sliding">Content is sliding in from a page change.</param>
+            <param name="Revealing">The surface is fading away to uncover the mirror.</param>
+            <param name="Spinning">A ring is turning because Orchard is genuinely working.</param>
+            <param name="HoverSettling">A hover highlight has not finished easing to its target.</param>
+            <param name="Holding">A presentation is counting down to hand the screen back.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.AnimationNeed.Sliding">
+            <summary>Content is sliding in from a page change.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.AnimationNeed.Revealing">
+            <summary>The surface is fading away to uncover the mirror.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.AnimationNeed.Spinning">
+            <summary>A ring is turning because Orchard is genuinely working.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.AnimationNeed.HoverSettling">
+            <summary>A hover highlight has not finished easing to its target.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.AnimationNeed.Holding">
+            <summary>A presentation is counting down to hand the screen back.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.AnimationPolicy">
+            <summary>
+            Whether there is any reason to repaint.
+            </summary>
+            <remarks>
+            <para>The surface ran a sixteen-millisecond timer whose every tick invalidated the whole
+            control, and it was stopped in exactly one place — after a reveal completed. So the opening
+            page repainted sixty times a second until someone clicked it, and a page reporting a failure
+            that had already given up did the same, indefinitely, redrawing an unchanging picture.</para>
+            <para>Asking one function makes "nothing is moving" a state the surface can be in, rather than
+            something that has to be noticed at each of the places motion happens to stop.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.AnimationPolicy.ShouldAnimate(Orchard.Mirror.Shell.AnimationNeed)">
+            <summary>Whether the surface has any reason to keep repainting.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.HoverEasing">
+            <summary>
+            Eases a hover highlight towards its target and says when it has arrived.
+            </summary>
+            <remarks>
+            Exponential easing never mathematically reaches its target, so something has to decide when it
+            is close enough to stop. Without that the surface can never go idle: the highlight would be
+            forever almost-settled and the timer would run forever with nothing visibly changing.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.HoverEasing.Tolerance">
+            <summary>How close counts as arrived. Well below one step of visible alpha.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.HoverEasing.Rate">
+            <summary>How much of the remaining distance is covered each step.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.HoverEasing.Step(System.Double,System.Double)">
+            <summary>Move one step towards the target.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.HoverEasing.Settled(System.Double,System.Double)">
+            <summary>Whether easing has arrived and can stop.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ClipboardPaste">
+            <summary>The result of reducing clipboard text to something the phone can be typed.</summary>
+            <param name="Text">What to send, already limited to typeable characters.</param>
+            <param name="Dropped">
+            How many characters were removed because the phone's keyboard has no key for them. Reported so
+            the confirmation can be honest — "pasted, two characters couldn't be typed" — rather than
+            silently mangling the text.
+            </param>
+            <param name="Truncated">Whether the text was longer than one command can carry and was cut.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ClipboardPaste.#ctor(System.String,System.Int32,System.Boolean)">
+            <summary>The result of reducing clipboard text to something the phone can be typed.</summary>
+            <param name="Text">What to send, already limited to typeable characters.</param>
+            <param name="Dropped">
+            How many characters were removed because the phone's keyboard has no key for them. Reported so
+            the confirmation can be honest — "pasted, two characters couldn't be typed" — rather than
+            silently mangling the text.
+            </param>
+            <param name="Truncated">Whether the text was longer than one command can carry and was cut.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ClipboardPaste.Text">
+            <summary>What to send, already limited to typeable characters.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ClipboardPaste.Dropped">
+            <summary>
+            How many characters were removed because the phone's keyboard has no key for them. Reported so
+            the confirmation can be honest — "pasted, two characters couldn't be typed" — rather than
+            silently mangling the text.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ClipboardPaste.Truncated">
+            <summary>Whether the text was longer than one command can carry and was cut.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ClipboardPaste.HasText">
+            <summary>Whether there is anything left to send.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ClipboardText">
+            <summary>
+            Reduces arbitrary clipboard text to the characters the phone's virtual keyboard can actually
+            type.
+            </summary>
+            <remarks>
+            <para>The phone is driven through a US-ASCII HID keyboard: the agent maps each character to a key
+            and <b>throws on the first one it can't</b>, after having already typed everything before it. So
+            pasting "café" or a line with a smart quote wouldn't produce a tidy failure — it would type half
+            the text and then error. A clipboard that behaves that way is worse than none, because the user
+            can't see what landed.</para>
+            <para>So the cleaning happens here, before a single keystroke is sent, and it is deliberately
+            generous rather than strict: curly quotes become straight ones, dashes and the ellipsis become
+            their ASCII shapes, exotic spaces become ordinary ones, and accented letters are decomposed to
+            their base form (café → cafe) rather than dropped. Only what survives all of that with no ASCII
+            equivalent — emoji, other scripts — is removed, and counted so the result can say so.</para>
+            <para>Pure text in, pure text out: no device, no keyboard, no I/O, so every rule here is a unit
+            test rather than something only the phone can check.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ClipboardText.MaxLength">
+            <summary>
+            The most characters one paste may carry, matching the agent's per-command type limit.
+            </summary>
+            <remarks>
+            A paste is typed key by key at roughly one character every 30 ms, so a cap is a kindness as
+            much as a protocol limit: pasting a whole document would lock the phone into a minute of
+            autonomous typing with no way to see it coming. The cap is applied after cleaning, because
+            decomposition can lengthen the text — an ellipsis becomes three characters.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ClipboardText.Sanitize(System.String)">
+            <summary>Turn clipboard text into a typeable paste.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ClipboardText.IsTypeable(System.Char)">
+            <summary>Whether the phone's ASCII keyboard has a key for this character.</summary>
+            <remarks>
+            Printable ASCII, plus the newline the agent already accepts as Return. Tabs are folded to a
+            space in <see cref="M:Orchard.Mirror.Shell.ClipboardText.FoldPunctuation(System.String)"/> rather than allowed here, because the virtual keyboard
+            has no reliable Tab in a text field and a literal tab would more often move focus than indent.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ClipboardText.FoldPunctuation(System.String)">
+            <summary>
+            Replace common typographic characters with their ASCII shapes, and normalize whitespace.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.StripInput">
+            <summary>Where the pointer is, and whether the strip is being used.</summary>
+            <param name="PointerInWindow">Whether the pointer is over the mirror window at all.</param>
+            <param name="PointerYFraction">
+            How far down the window the pointer is, from 0 at the top to 1 at the bottom. A fraction rather
+            than a pixel count so the reveal band means the same thing in a window of any size.
+            </param>
+            <param name="HoldOpen">
+            Whether something is actively using the controls -- the pointer resting on one, a control
+            holding focus, a menu open beneath one. Any of those outranks where the pointer happens to be.
+            </param>
+            <param name="Now">The current time.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StripInput.#ctor(System.Boolean,System.Double,System.Boolean,System.DateTimeOffset)">
+            <summary>Where the pointer is, and whether the strip is being used.</summary>
+            <param name="PointerInWindow">Whether the pointer is over the mirror window at all.</param>
+            <param name="PointerYFraction">
+            How far down the window the pointer is, from 0 at the top to 1 at the bottom. A fraction rather
+            than a pixel count so the reveal band means the same thing in a window of any size.
+            </param>
+            <param name="HoldOpen">
+            Whether something is actively using the controls -- the pointer resting on one, a control
+            holding focus, a menu open beneath one. Any of those outranks where the pointer happens to be.
+            </param>
+            <param name="Now">The current time.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StripInput.PointerInWindow">
+            <summary>Whether the pointer is over the mirror window at all.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StripInput.PointerYFraction">
+            <summary>
+            How far down the window the pointer is, from 0 at the top to 1 at the bottom. A fraction rather
+            than a pixel count so the reveal band means the same thing in a window of any size.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StripInput.HoldOpen">
+            <summary>
+            Whether something is actively using the controls -- the pointer resting on one, a control
+            holding focus, a menu open beneath one. Any of those outranks where the pointer happens to be.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StripInput.Now">
+            <summary>The current time.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.StripFade">
+            <summary>
+            Eases the control strip's opacity towards where <see cref="T:Orchard.Mirror.Shell.ControlStripPolicy"/> wants it.
+            </summary>
+            <remarks>
+            <para>Separate from the fade timer that drives it because the arithmetic is where this went
+            wrong: choosing the direction with <c>target &gt; current</c> means a strip already at 1 takes
+            the *downward* branch, drops to 0.86, is pulled back to 1 on the next tick, and strobes at ten
+            hertz for as long as it is on screen.</para>
+            <para>So a step towards the target never passes it, and being there already is a step of
+            nothing. Compare <see cref="T:Orchard.Mirror.Shell.HoverEasing"/>, which solves the same problem for the setup
+            surface.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StripFade.Shown">
+            <summary>
+            How opaque the controls get. Deliberately short of 1, because WinForms drops WS_EX_LAYERED
+            from a form whose <c>Opacity</c> is exactly 1 — measured: at 1.0 the style bit is gone, at
+            0.98 it is set with an alpha of 249. Landing on 1 would therefore add and remove a window
+            style at the end of every fade, and a style change forces a non-client repaint. Stopping a
+            sliver short keeps the window layered for the whole of its life, so the fade is only ever
+            an alpha.
+            </summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StripFade.ArrivingStep">
+            <summary>How much opacity a single tick adds while the controls are arriving.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StripFade.LeavingStep">
+            <summary>How much a single tick removes while they are leaving, slower than arriving.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StripFade.Step(System.Double,System.Double)">
+            <summary>Move one tick towards the target, stopping exactly on it.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StripFade.Settled(System.Double,System.Double)">
+            <summary>Whether the fade has arrived and the timer has nothing left to do.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ControlStripPolicy">
+            <summary>
+            Decides when the window controls are on screen.
+            </summary>
+            <remarks>
+            <para>The window is borderless and always-on-top with no title bar, so before this there was no
+            visible way to disconnect, unpin, minimise or close it — the only disconnect was a Shift-Escape
+            shortcut documented on a screen you could not reach without already knowing the shortcut.</para>
+            <para>Reaching for the top of a window is the gesture that asks for its controls, so that is what
+            summons them. They linger briefly after the pointer leaves, because a control that vanishes
+            while you are travelling towards it cannot be clicked, and they never leave while one of them
+            holds focus, because a keyboard user has no pointer to hold them with.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ControlStripPolicy.RevealBand">
+            <summary>
+            How far down the window still counts as reaching for the controls.
+            </summary>
+            <remarks>
+            The strip itself covers roughly the top fourteenth of the window, so this is about a strip
+            and a half: enough that a hand travelling towards the controls has already summoned them
+            before it arrives, and little enough that using the top of the phone's own screen does not.
+            It was 0.18 — a fifth of the picture, which on a phone-shaped window is most of the way down
+            the notification shade, and the bar kept appearing over things the owner was reaching for.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ControlStripPolicy.Dwell">
+            <summary>How long the controls linger once the pointer leaves the band.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ControlStripPolicy.Shown">
+            <summary>Whether the controls should be on screen.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ControlStripPolicy.Update(Orchard.Mirror.Shell.StripInput)">
+            <summary>Fold in where the pointer is now, and say whether the controls belong on screen.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.PixelRect">
+            <summary>A rectangle in decoded-frame pixels.</summary>
+            <param name="X">Left edge, in frame pixels from the left.</param>
+            <param name="Y">Top edge, in frame pixels from the top.</param>
+            <param name="Width">Width in frame pixels.</param>
+            <param name="Height">Height in frame pixels.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.PixelRect.#ctor(System.Int32,System.Int32,System.Int32,System.Int32)">
+            <summary>A rectangle in decoded-frame pixels.</summary>
+            <param name="X">Left edge, in frame pixels from the left.</param>
+            <param name="Y">Top edge, in frame pixels from the top.</param>
+            <param name="Width">Width in frame pixels.</param>
+            <param name="Height">Height in frame pixels.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PixelRect.X">
+            <summary>Left edge, in frame pixels from the left.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PixelRect.Y">
+            <summary>Top edge, in frame pixels from the top.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PixelRect.Width">
+            <summary>Width in frame pixels.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PixelRect.Height">
+            <summary>Height in frame pixels.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PixelRect.Right">
+            <summary>The right edge, one past the last column.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PixelRect.Bottom">
+            <summary>The bottom edge, one past the last row.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PixelRect.Area">
+            <summary>Area in pixels, which is zero for a click that never became a drag.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.FrameRegion">
+            <summary>Where a text grab will read from, and whether it is worth reading at all.</summary>
+            <param name="Rect">The region of the decoded frame to hand to OCR.</param>
+            <param name="Valid">
+            Whether the selection is a real region rather than a stray click or a collapsed drag. A false
+            here is the signal to do nothing quietly, not to OCR an empty strip.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.FrameRegion.#ctor(Orchard.Mirror.Shell.PixelRect,System.Boolean)">
+            <summary>Where a text grab will read from, and whether it is worth reading at all.</summary>
+            <param name="Rect">The region of the decoded frame to hand to OCR.</param>
+            <param name="Valid">
+            Whether the selection is a real region rather than a stray click or a collapsed drag. A false
+            here is the signal to do nothing quietly, not to OCR an empty strip.
+            </param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.FrameRegion.Rect">
+            <summary>The region of the decoded frame to hand to OCR.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.FrameRegion.Valid">
+            <summary>
+            Whether the selection is a real region rather than a stray click or a collapsed drag. A false
+            here is the signal to do nothing quietly, not to OCR an empty strip.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.FrameSelection">
+            <summary>
+            Turns a rectangle the owner dragged over the mirror window into the region of the decoded frame
+            it covers.
+            </summary>
+            <remarks>
+            <para>This is the whole of the geometry for grabbing text off the phone, kept away from the
+            window and the GPU so it can be a table of cases rather than something only a running device can
+            exercise. The window shows the presented frame scaled to fill its client area, so a box in
+            window pixels is the same box in frame pixels once it is scaled by the ratio between the two —
+            the same shape of mapping the touch layer already does the other way, from a click to a
+            touchscreen coordinate.</para>
+            <para>Two things it refuses to hand on. A drag from bottom-right to top-left is the same
+            rectangle as top-left to bottom-right, so corners are ordered before anything else; without that
+            a backwards drag would produce a negative size and read nothing. And a selection smaller than a
+            few frame pixels each way is a click that twitched, not a region — those are marked invalid so
+            the caller stays silent rather than running OCR over three pixels and reporting "no text
+            found".</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.FrameSelection.MinimumDimension">
+            <summary>
+            The smallest a selection may be, in frame pixels each way, and still count as deliberate.
+            </summary>
+            <remarks>
+            Small enough that grabbing a single short word still works, large enough that the jitter of a
+            press-and-release with no real drag falls under it. The unit is frame pixels rather than
+            window pixels so the threshold means the same thing whether the window is tiny or maximised.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.FrameSelection.Map(System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32)">
+            <summary>Map a dragged rectangle in window pixels to a region of the decoded frame.</summary>
+            <param name="startX">One corner's X, in window client pixels.</param>
+            <param name="startY">One corner's Y, in window client pixels.</param>
+            <param name="endX">The opposite corner's X, in window client pixels.</param>
+            <param name="endY">The opposite corner's Y, in window client pixels.</param>
+            <param name="clientWidth">The width of the area the frame is drawn across, in window pixels.</param>
+            <param name="clientHeight">The height of the area the frame is drawn across, in window pixels.</param>
+            <param name="frameWidth">The decoded frame's width in pixels.</param>
+            <param name="frameHeight">The decoded frame's height in pixels.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.FrameSelection.Scale(System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Scale one window coordinate onto the frame, rounded, and never off the far edge.
+            </summary>
+            <remarks>
+            Done in <see cref="T:System.Int64"/> because a 4K-wide frame times a window coordinate overflows an
+            <see cref="T:System.Int32"/> before the divide. The clamp to the frame width matters at the bottom and
+            right edges: rounding a coordinate that sits exactly on the window's edge can land one pixel
+            past the last row or column, which a map for read would reject.
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.PictureState">
+            <summary>What is actually on the mirror surface at the moment a status is shown.</summary>
+            <remarks>
+            <para>This replaces a single <c>MirrorLive</c> boolean, which conflated two facts that come
+            apart precisely when it matters: whether a picture is on screen, and whether the stream feeding
+            it is still running. A broken stream does not take its last frame with it — the swap chain still
+            holds it and DWM carries on compositing it — so for a second or two after a cable is knocked,
+            the phone is still there on screen, unchanged and perfectly legible.</para>
+            <para>Treating that as "no picture" is what made an ordinary blip look like a fault: the last
+            frame stayed up, and Orchard dropped a full-surface panel over it to announce a reconnection
+            that had usually already succeeded by the time the panel finished sliding in.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.PictureState.None">
+            <summary>Nothing worth protecting. The surface is free.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.PictureState.Live">
+            <summary>A current frame, still updating.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.PictureState.Held">
+            <summary>
+            The last frame of a stream that has stopped. Still on screen, still legible, and no longer
+            true — but not yet a lie worth covering.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.HeldFrame">
+            <summary>How long the last frame of a broken stream stays worth keeping.</summary>
+            <remarks>
+            <para>A frozen picture is honest for a moment and dishonest after that. The window between the
+            two is what this names: long enough that a blip which recovers is never announced, short enough
+            that a phone which is genuinely gone stops being represented by a photograph of itself.</para>
+            <para>The duration is asserted against <see cref="T:Orchard.Mirror.Shell.RetryPolicy"/> rather than chosen in isolation,
+            because the two have to agree. Shorter than the first few retries and every recoverable stall
+            still flashes a panel, which is the whole fault being fixed. Longer than the retry budget and the
+            panel never appears at all before Orchard gives up, so the owner watches a still image for twenty
+            seconds and is then told it was never coming back.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.HeldFrame.Believable">
+            <summary>How long a stopped stream's last frame stays on screen unremarked.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.HeldFrame.StillBelievable(System.TimeSpan)">
+            <summary>Whether a frame frozen this long ago is still worth showing without comment.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.JsonFieldLookup">
+            <summary>
+            Pulls a named string out of a CoreDevice reply whose shape Orchard does not control.
+            </summary>
+            <remarks>
+            The agent forwards whatever the device answered, and those replies nest deeply and repeat
+            generic key names at several levels. Finding a field therefore has to search — but the order it
+            searches in is the whole problem, and getting it wrong is not a crash, it is a plausible wrong
+            answer displayed as fact.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.JsonFieldLookup.FindString(System.Text.Json.JsonElement,System.String[])">
+            <summary>
+            Find the first of <paramref name="names"/> that is present, preferring earlier names and
+            shallower matches.
+            </summary>
+            <remarks>
+            Each name is searched breadth-first and to exhaustion before the next is tried, so a
+            specific key always beats a generic one and a shallow match beats a deep one. A single
+            depth-first pass over all the names at once returns whichever it happens to meet first,
+            which is how the connected device's label came back reading "com.apple.os.update-03…" — a
+            nested <c>name</c> belonging to something else entirely, found before the reply's own
+            <c>deviceName</c>.
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ConnectionState">
+            <summary>Where the connection to the phone has got to.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.Idle">
+            <summary>Nothing has been started yet.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.GuidedSetup">
+            <summary>The first-run walkthrough is running.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.Connecting">
+            <summary>An attempt to reach the phone is in flight.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.Live">
+            <summary>A picture is on screen.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.Asleep">
+            <summary>The phone's screen is off. The session is intact and waiting to be woken.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.WaitingToRetry">
+            <summary>An attempt failed and the next one is pending.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.GaveUp">
+            <summary>Orchard has stopped trying and will not start again unasked.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.UserDisconnected">
+            <summary>The owner asked to stop. Nothing may pull the phone back.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionState.ShuttingDown">
+            <summary>The window is closing.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ConnectionTrigger">
+            <summary>Something that happened to the connection.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.Shown">
+            <summary>The window appeared.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.SetupFinished">
+            <summary>The walkthrough finished.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.SetupSkipped">
+            <summary>The owner said they had done this before.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.FirstFrame">
+            <summary>A frame reached the screen.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.AttemptFailed">
+            <summary>An attempt to connect failed.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.StreamInterrupted">
+            <summary>A running stream broke.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.PhoneAsleep">
+            <summary>The phone's screen went off.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.PhoneAwake">
+            <summary>The phone's screen came back.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.UserDisconnect">
+            <summary>The owner asked to stop mirroring.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.UserReconnect">
+            <summary>The owner asked to start again.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.RetryDue">
+            <summary>The wait before the next attempt has elapsed.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ConnectionTrigger.WindowClosing">
+            <summary>The window is closing.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ConnectionEvent">
+            <summary>One thing that happened.</summary>
+            <param name="Trigger">What happened.</param>
+            <param name="OnboardingComplete">
+            Only consulted on <see cref="F:Orchard.Mirror.Shell.ConnectionTrigger.Shown"/>. Whether the owner has been through the
+            walkthrough before.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ConnectionEvent.#ctor(Orchard.Mirror.Shell.ConnectionTrigger,System.Boolean)">
+            <summary>One thing that happened.</summary>
+            <param name="Trigger">What happened.</param>
+            <param name="OnboardingComplete">
+            Only consulted on <see cref="F:Orchard.Mirror.Shell.ConnectionTrigger.Shown"/>. Whether the owner has been through the
+            walkthrough before.
+            </param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ConnectionEvent.Trigger">
+            <summary>What happened.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ConnectionEvent.OnboardingComplete">
+            <summary>
+            Only consulted on <see cref="F:Orchard.Mirror.Shell.ConnectionTrigger.Shown"/>. Whether the owner has been through the
+            walkthrough before.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.CommandKind">
+            <summary>Something the window must actually do.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.CommandKind.RunGuidedSetup">
+            <summary>Run the first-run walkthrough. Only ever from a cold start.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.CommandKind.StartAttempt">
+            <summary>Start one connection attempt.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.CommandKind.TearDown">
+            <summary>Release the agent, session and input.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.CommandKind.ScheduleRetry">
+            <summary>Come back after a delay.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.CommandKind.CancelRetry">
+            <summary>Abandon any pending retry.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ConnectionCommand">
+            <summary>One instruction to the window.</summary>
+            <param name="Kind">What to do.</param>
+            <param name="Delay">How long to wait, for <see cref="F:Orchard.Mirror.Shell.CommandKind.ScheduleRetry"/>.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ConnectionCommand.#ctor(Orchard.Mirror.Shell.CommandKind,System.TimeSpan)">
+            <summary>One instruction to the window.</summary>
+            <param name="Kind">What to do.</param>
+            <param name="Delay">How long to wait, for <see cref="F:Orchard.Mirror.Shell.CommandKind.ScheduleRetry"/>.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ConnectionCommand.Kind">
+            <summary>What to do.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ConnectionCommand.Delay">
+            <summary>How long to wait, for <see cref="F:Orchard.Mirror.Shell.CommandKind.ScheduleRetry"/>.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.RetryPolicy">
+            <summary>How long to wait between attempts, and when to stop.</summary>
+            <remarks>
+            A dropped cable or a brief Wi-Fi stall is usually recoverable on the very next attempt, so the
+            first wait is almost nothing. The cap matters more: without one, a phone left in a drawer makes
+            Orchard spawn an agent process, open a tunnel and negotiate a DisplayService session every few
+            seconds for as long as the window is open — and that churn is itself the thing recorded as
+            wedging the phone's media daemon.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.RetryPolicy.MaxAttempts">
+            <summary>How many consecutive failures before Orchard stops trying unasked.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.RetryPolicy.Delay(System.Int32)">
+            <summary>The wait before attempt number <paramref name="attempt"/>, counting from one.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RetryPolicy.TotalBudget">
+            <summary>The longest Orchard will keep trying before it stops and says so.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.MirrorConnectionMachine">
+            <summary>
+            The connection's whole state, in one place that can be tested.
+            </summary>
+            <remarks>
+            <para>This replaces a set of scattered fields that could not express what they were being asked
+            to. One int was overloaded as both "a retry loop is running" and "the owner asked to stop", so a
+            disconnect pressed during a reconnect set the flag the loop never read — the loop tore down,
+            reconnected anyway, and painted over the "Disconnected" screen the owner had just asked for.
+            Two more fields tracked shutting-down, two tracked sleep, and "connected" was inferred by
+            null-checking three separate references that were assigned outside the lock that guarded them.</para>
+            <para>The other defect it closes is a routing one. Reconnect used to be wired to the first-run
+            walkthrough, which waits for a USB cable — so an owner mirroring over Wi-Fi who disconnected
+            could never get back without plugging in. That the walkthrough runs only from a cold start is
+            now an invariant of this machine rather than a convention at a call site.</para>
+            <para>No timers, no tasks, no I/O: it answers what should happen and the window does it.</para>
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorConnectionMachine.State">
+            <summary>Where the connection has got to.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorConnectionMachine.FailedAttempts">
+            <summary>Consecutive failures since the last frame or explicit request.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorConnectionMachine.WalkthroughStarted">
+            <summary>Whether the walkthrough has ever been started.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.MirrorConnectionMachine.Handle(Orchard.Mirror.Shell.ConnectionEvent)">
+            <summary>Advance the machine and say what the window should do.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.MirrorConnectionMachine.Live">
+            <summary>A picture on screen clears the failure count: getting back earns a full set of tries.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.NoticeKind">
+            <summary>What happened, as a kind rather than as a sentence.</summary>
+            <remarks>
+            The session used to report its state as free text plus a handful of parallel booleans, which
+            meant the only way to decide how loudly to say something was to inspect the words. A kind can be
+            routed; a sentence cannot.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.Connecting">
+            <summary>Looking for the phone, opening the tunnel, mounting the developer image.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.SetupStep">
+            <summary>A step of the first-run walkthrough is under way.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.Connected">
+            <summary>The tunnel is up and the stream has been asked for.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.FirstFrame">
+            <summary>A frame reached the screen. The mirror is live from here.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.StreamHealth">
+            <summary>Routine stream bookkeeping — frame counters and the like.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.AudioStarted">
+            <summary>Sound is coming through.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.LockChanged">
+            <summary>The phone was locked or unlocked. It keeps streaming either way.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.Asleep">
+            <summary>The screen went off, so there is nothing to show until it comes back.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.Awake">
+            <summary>The screen came back.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.Interrupted">
+            <summary>The stream broke and Orchard is dealing with it.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.AttemptFailed">
+            <summary>An attempt to connect failed and Orchard has stopped trying for now.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.GaveUp">
+            <summary>Orchard has exhausted its retries and will not try again unasked.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.UserDisconnected">
+            <summary>The owner asked to stop mirroring.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.SetupBlocked">
+            <summary>Setup stopped on something only the owner can resolve.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeKind.Info">
+            <summary>
+            A one-off confirmation the owner asked for — a paste landing, a setting taking effect.
+            </summary>
+            <remarks>
+            Its own kind rather than borrowing one of the phone-state notices, because those carry the
+            wrong glyph and the wrong meaning: a paste is not the phone locking. It routes as a toast when
+            there is a picture to sit over and is simply dropped when there is not, since a confirmation
+            of something that only happens against a live mirror has nothing to confirm on a blank window.
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.NoticeSeverity">
+            <summary>How much of the owner's attention a notice has earned.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeSeverity.Progress">
+            <summary>Something is under way.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeSeverity.Neutral">
+            <summary>A fact, neither good nor bad.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeSeverity.Warning">
+            <summary>Working, but not as intended.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.NoticeSeverity.Failure">
+            <summary>Stopped, and it will not fix itself.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.MirrorNotice">
+            <summary>One thing that happened, ready to be routed to a surface.</summary>
+            <param name="Kind">What happened.</param>
+            <param name="Headline">
+            What to say. Empty means "use the default for this kind" — a caller that has something specific
+            to say always wins, which is the whole point: the old view discarded the caller's headline in
+            three of its five phases and showed "All set" over the top of live errors.
+            </param>
+            <param name="Detail">Supporting text, or empty.</param>
+            <param name="Severity">How loudly to say it.</param>
+            <param name="Code">A stable machine-readable cause, when one is known.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.MirrorNotice.#ctor(Orchard.Mirror.Shell.NoticeKind,System.String,System.String,Orchard.Mirror.Shell.NoticeSeverity,System.String)">
+            <summary>One thing that happened, ready to be routed to a surface.</summary>
+            <param name="Kind">What happened.</param>
+            <param name="Headline">
+            What to say. Empty means "use the default for this kind" — a caller that has something specific
+            to say always wins, which is the whole point: the old view discarded the caller's headline in
+            three of its five phases and showed "All set" over the top of live errors.
+            </param>
+            <param name="Detail">Supporting text, or empty.</param>
+            <param name="Severity">How loudly to say it.</param>
+            <param name="Code">A stable machine-readable cause, when one is known.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorNotice.Kind">
+            <summary>What happened.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorNotice.Headline">
+            <summary>
+            What to say. Empty means "use the default for this kind" — a caller that has something specific
+            to say always wins, which is the whole point: the old view discarded the caller's headline in
+            three of its five phases and showed "All set" over the top of live errors.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorNotice.Detail">
+            <summary>Supporting text, or empty.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorNotice.Severity">
+            <summary>How loudly to say it.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.MirrorNotice.Code">
+            <summary>A stable machine-readable cause, when one is known.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.FeatureRow">
+            <summary>
+            One feature row: a mark, a short bold line, and a quieter line under it.
+            </summary>
+            <remarks>
+            This is the shape Apple's welcome sheets use, and it exists here because it is a better answer
+            than the paragraph it replaces. Three numbered sentences in a block of body copy are read as
+            prose, which means they are read once or not at all; the same three facts as rows with their own
+            marks are scannable, and the mark tells you which one you are on without reading it.
+            </remarks>
+            <param name="Glyph">Which mark to draw, resolved to a shape by whoever is painting.</param>
+            <param name="Title">The bold line. One short phrase.</param>
+            <param name="Detail">The quieter line under it.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.FeatureRow.#ctor(System.Int32,System.String,System.String)">
+            <summary>
+            One feature row: a mark, a short bold line, and a quieter line under it.
+            </summary>
+            <remarks>
+            This is the shape Apple's welcome sheets use, and it exists here because it is a better answer
+            than the paragraph it replaces. Three numbered sentences in a block of body copy are read as
+            prose, which means they are read once or not at all; the same three facts as rows with their own
+            marks are scannable, and the mark tells you which one you are on without reading it.
+            </remarks>
+            <param name="Glyph">Which mark to draw, resolved to a shape by whoever is painting.</param>
+            <param name="Title">The bold line. One short phrase.</param>
+            <param name="Detail">The quieter line under it.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.FeatureRow.Glyph">
+            <summary>Which mark to draw, resolved to a shape by whoever is painting.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.FeatureRow.Title">
+            <summary>The bold line. One short phrase.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.FeatureRow.Detail">
+            <summary>The quieter line under it.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.PageContent">
+            <summary>What a setup page has to show.</summary>
+            <param name="Kicker">The small tracked word above the headline.</param>
+            <param name="Title">The headline.</param>
+            <param name="Body">Supporting text. Blank lines are paragraph breaks.</param>
+            <param name="ShowMedallion">Whether the mark above the headline is drawn.</param>
+            <param name="ShowSpinner">Whether a turning ring sits beside the mark.</param>
+            <param name="PrimaryLabel">The main button's label, or empty for no button.</param>
+            <param name="SecondaryLabel">The secondary button's label, or null for none.</param>
+            <param name="Rows">Feature rows under the body, or empty for a page that has none.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.PageContent.#ctor(System.String,System.String,System.String,System.Boolean,System.Boolean,System.String,System.String,System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Shell.FeatureRow})">
+            <summary>What a setup page has to show.</summary>
+            <param name="Kicker">The small tracked word above the headline.</param>
+            <param name="Title">The headline.</param>
+            <param name="Body">Supporting text. Blank lines are paragraph breaks.</param>
+            <param name="ShowMedallion">Whether the mark above the headline is drawn.</param>
+            <param name="ShowSpinner">Whether a turning ring sits beside the mark.</param>
+            <param name="PrimaryLabel">The main button's label, or empty for no button.</param>
+            <param name="SecondaryLabel">The secondary button's label, or null for none.</param>
+            <param name="Rows">Feature rows under the body, or empty for a page that has none.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.Kicker">
+            <summary>The small tracked word above the headline.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.Title">
+            <summary>The headline.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.Body">
+            <summary>Supporting text. Blank lines are paragraph breaks.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.ShowMedallion">
+            <summary>Whether the mark above the headline is drawn.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.ShowSpinner">
+            <summary>Whether a turning ring sits beside the mark.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.PrimaryLabel">
+            <summary>The main button's label, or empty for no button.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.SecondaryLabel">
+            <summary>The secondary button's label, or null for none.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.PageContent.Rows">
+            <summary>Feature rows under the body, or empty for a page that has none.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.RowBoxes">
+            <summary>Where one placed feature row goes, and what its text broke into.</summary>
+            <param name="Icon">The square the mark is drawn in.</param>
+            <param name="Title">The bold line's box.</param>
+            <param name="Detail">The quiet line's box.</param>
+            <param name="Glyph">Which mark to draw.</param>
+            <param name="TitleText">The bold line, elided to one line.</param>
+            <param name="DetailText">The quiet line's lines.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.RowBoxes.#ctor(Orchard.Mirror.Shell.Box,Orchard.Mirror.Shell.Box,Orchard.Mirror.Shell.Box,System.Int32,Orchard.Mirror.Shell.TextLayout,Orchard.Mirror.Shell.TextLayout)">
+            <summary>Where one placed feature row goes, and what its text broke into.</summary>
+            <param name="Icon">The square the mark is drawn in.</param>
+            <param name="Title">The bold line's box.</param>
+            <param name="Detail">The quiet line's box.</param>
+            <param name="Glyph">Which mark to draw.</param>
+            <param name="TitleText">The bold line, elided to one line.</param>
+            <param name="DetailText">The quiet line's lines.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RowBoxes.Icon">
+            <summary>The square the mark is drawn in.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RowBoxes.Title">
+            <summary>The bold line's box.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RowBoxes.Detail">
+            <summary>The quiet line's box.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RowBoxes.Glyph">
+            <summary>Which mark to draw.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RowBoxes.TitleText">
+            <summary>The bold line, elided to one line.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RowBoxes.DetailText">
+            <summary>The quiet line's lines.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.OnboardingBoxes">
+            <summary>Where every piece of a setup page goes, in device-independent pixels.</summary>
+            <param name="Medallion">The glass mark, or null when there was no room for it.</param>
+            <param name="Spinner">The turning ring, or null.</param>
+            <param name="Kicker">The kicker's box, or null when there was no room for it.</param>
+            <param name="Title">The headline's box.</param>
+            <param name="Body">The body's box.</param>
+            <param name="Primary">The main button, or null.</param>
+            <param name="Secondary">The secondary button, or null.</param>
+            <param name="KickerText">The kicker, elided to one line.</param>
+            <param name="TitleText">The headline's lines.</param>
+            <param name="BodyText">The body's lines.</param>
+            <param name="Rows">The placed feature rows, empty when the page has none or there was no room.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.OnboardingBoxes.#ctor(System.Nullable{Orchard.Mirror.Shell.Box},System.Nullable{Orchard.Mirror.Shell.Box},System.Nullable{Orchard.Mirror.Shell.Box},Orchard.Mirror.Shell.Box,Orchard.Mirror.Shell.Box,System.Nullable{Orchard.Mirror.Shell.Box},System.Nullable{Orchard.Mirror.Shell.Box},Orchard.Mirror.Shell.TextLayout,Orchard.Mirror.Shell.TextLayout,Orchard.Mirror.Shell.TextLayout,System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Shell.RowBoxes})">
+            <summary>Where every piece of a setup page goes, in device-independent pixels.</summary>
+            <param name="Medallion">The glass mark, or null when there was no room for it.</param>
+            <param name="Spinner">The turning ring, or null.</param>
+            <param name="Kicker">The kicker's box, or null when there was no room for it.</param>
+            <param name="Title">The headline's box.</param>
+            <param name="Body">The body's box.</param>
+            <param name="Primary">The main button, or null.</param>
+            <param name="Secondary">The secondary button, or null.</param>
+            <param name="KickerText">The kicker, elided to one line.</param>
+            <param name="TitleText">The headline's lines.</param>
+            <param name="BodyText">The body's lines.</param>
+            <param name="Rows">The placed feature rows, empty when the page has none or there was no room.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Medallion">
+            <summary>The glass mark, or null when there was no room for it.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Spinner">
+            <summary>The turning ring, or null.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Kicker">
+            <summary>The kicker's box, or null when there was no room for it.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Title">
+            <summary>The headline's box.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Body">
+            <summary>The body's box.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Primary">
+            <summary>The main button, or null.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Secondary">
+            <summary>The secondary button, or null.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.KickerText">
+            <summary>The kicker, elided to one line.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.TitleText">
+            <summary>The headline's lines.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.BodyText">
+            <summary>The body's lines.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingBoxes.Rows">
+            <summary>The placed feature rows, empty when the page has none or there was no room.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.OnboardingLayout">
+            <summary>
+            Places a setup page, and decides what gives when it does not fit.
+            </summary>
+            <remarks>
+            <para>The old layout accumulated a running <c>y</c> down the page and never compared it against
+            anything. When the headline grew — which it did as soon as the window was scaled — the body's
+            rectangle was clamped to a floor of twenty pixels, one line, and the rest of the text was
+            dropped without a mark; at the same time the draw call was told not to clip, so the part that
+            did render bled over the buttons underneath.</para>
+            <para>What gives is now decided in a fixed order, and every element is inside its own box or
+            absent: the headline clamps and elides first, then the body takes whatever is left above the
+            buttons and elides, then the medallion is dropped, and last the kicker. Dropping ornament to
+            keep words is the right order; the old code dropped words to keep ornament.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.OnboardingLayout.TitleLineLimit">
+            <summary>The most lines a headline may take before it starts to elide.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.OnboardingLayout.Nothing">
+            <summary>A placeable-nothing, with empty lists rather than nulls.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.OnboardingLayout.Compute(System.Double,System.Double,Orchard.Mirror.Shell.PageContent,Orchard.Mirror.Shell.TypeScale,System.Func{Orchard.Mirror.Shell.TypeRole,Orchard.Mirror.Shell.MeasureText})">
+            <summary>Place everything, or report it cannot be placed at all.</summary>
+            <param name="surfaceWidthDip">Surface width.</param>
+            <param name="surfaceHeightDip">Surface height.</param>
+            <param name="content">What the page has to say.</param>
+            <param name="scale">The type scale and spacing for this surface.</param>
+            <param name="measureFor">Supplies a measurer for each role.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.OnboardingLayout.Centre(Orchard.Mirror.Shell.OnboardingBoxes,System.Double)">
+            <summary>
+            Sit a page optically in its space instead of jammed against the top.
+            </summary>
+            <remarks>
+            <para>Shifted by slightly less than half the slack, because optical centre sits above
+            geometric centre.</para>
+            <para>This used to exempt any page that had buttons, on the grounds that buttons anchor the
+            bottom and so the page is held at both ends. They anchor themselves. On the opening page the
+            text stopped a third of the way down and the buttons began at the very bottom, leaving a
+            wide band of nothing between them that read as an unfinished template. The slack is measured
+            to the top of the buttons and only a fraction of it is ever taken, so distributing it cannot
+            push anything into them.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.OnboardingLayout.MeasureRows(System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Shell.FeatureRow},Orchard.Mirror.Shell.TypeScale,System.Func{Orchard.Mirror.Shell.TypeRole,Orchard.Mirror.Shell.MeasureText},System.Double,System.Double)">
+            <summary>
+            Lay the feature rows out from a top of zero, so they can be moved as a block afterwards.
+            </summary>
+            <remarks>
+            A row is as tall as the taller of its mark and its two lines of text. Using the text alone
+            would let a one-line row be shorter than its own 37-point mark, and the marks would then sit
+            closer together than the rows they belong to.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.OnboardingLayout.RowsHeight(System.Collections.Generic.List{Orchard.Mirror.Shell.RowBoxes})">
+            <summary>How tall the placed rows are together, without the trailing gap.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.StatusSurface">
+            <summary>Where a status is allowed to appear.</summary>
+            <remarks>
+            This distinction is the fix for the worst of the flow complaints. Everything used to arrive on
+            the same full-surface panel, so locking the phone — which the phone keeps streaming through —
+            slammed a sheet of glass over a picture that was still perfectly good.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusSurface.None">
+            <summary>Not shown. Worth recording, not worth interrupting for.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusSurface.Toast">
+            <summary>A small note over the live mirror, which dismisses itself.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusSurface.Full">
+            <summary>The whole surface. Only when there is nothing worth looking at behind it.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ColorRole">
+            <summary>A named colour, resolved to an actual value by whoever is painting.</summary>
+            <remarks>Roles rather than colours, so the palette lives in one place instead of two that disagree.</remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ColorRole.TextPrimary">
+            <summary>Ordinary headline text.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ColorRole.TextSecondary">
+            <summary>Supporting text.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ColorRole.Progress">
+            <summary>Something is under way.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ColorRole.Warning">
+            <summary>Working, but not as intended.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ColorRole.Failure">
+            <summary>Stopped.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.GlyphRole">
+            <summary>The mark drawn beside a status.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.GlyphRole.Display">
+            <summary>A screen. The opening page.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.GlyphRole.Link">
+            <summary>A cable.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.GlyphRole.Working">
+            <summary>A switch being thrown — Orchard is doing something.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.GlyphRole.Ready">
+            <summary>Done.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.GlyphRole.Asleep">
+            <summary>A darkened screen.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.GlyphRole.Blocked">
+            <summary>Stopped on something the owner has to resolve.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.StatusActionKind">
+            <summary>What the button under a status does, if there is one.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusActionKind.None">
+            <summary>No button.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusActionKind.Reconnect">
+            <summary>Start connecting again. Never the first-run walkthrough.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusActionKind.Wake">
+            <summary>Press the phone's power button.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.StatusPresentation">
+            <summary>Everything needed to draw one status, decided in one place.</summary>
+            <param name="Surface">Where it may appear.</param>
+            <param name="Kicker">The small word above the headline.</param>
+            <param name="Headline">The headline. Never empty for a surface that shows one.</param>
+            <param name="Detail">Supporting text, or empty.</param>
+            <param name="Accent">The colour the headline takes.</param>
+            <param name="Spinner">Whether something is visibly turning.</param>
+            <param name="Glyph">The mark beside it.</param>
+            <param name="Action">The button under it.</param>
+            <param name="ActionLabel">What the button says, or empty when there is none.</param>
+            <param name="AutoDismiss">How long a toast holds before it fades. Null for surfaces that stay.</param>
+            <param name="Rows">
+            Feature rows under the detail text. Only the opening page has any: a routed status is one thing
+            that has happened, and a list of three is not a way of saying one thing.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StatusPresentation.#ctor(Orchard.Mirror.Shell.StatusSurface,System.String,System.String,System.String,Orchard.Mirror.Shell.ColorRole,System.Boolean,Orchard.Mirror.Shell.GlyphRole,Orchard.Mirror.Shell.StatusActionKind,System.String,System.Nullable{System.TimeSpan},System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Shell.FeatureRow})">
+            <summary>Everything needed to draw one status, decided in one place.</summary>
+            <param name="Surface">Where it may appear.</param>
+            <param name="Kicker">The small word above the headline.</param>
+            <param name="Headline">The headline. Never empty for a surface that shows one.</param>
+            <param name="Detail">Supporting text, or empty.</param>
+            <param name="Accent">The colour the headline takes.</param>
+            <param name="Spinner">Whether something is visibly turning.</param>
+            <param name="Glyph">The mark beside it.</param>
+            <param name="Action">The button under it.</param>
+            <param name="ActionLabel">What the button says, or empty when there is none.</param>
+            <param name="AutoDismiss">How long a toast holds before it fades. Null for surfaces that stay.</param>
+            <param name="Rows">
+            Feature rows under the detail text. Only the opening page has any: a routed status is one thing
+            that has happened, and a list of three is not a way of saying one thing.
+            </param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Surface">
+            <summary>Where it may appear.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Kicker">
+            <summary>The small word above the headline.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Headline">
+            <summary>The headline. Never empty for a surface that shows one.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Detail">
+            <summary>Supporting text, or empty.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Accent">
+            <summary>The colour the headline takes.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Spinner">
+            <summary>Whether something is visibly turning.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Glyph">
+            <summary>The mark beside it.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Action">
+            <summary>The button under it.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.ActionLabel">
+            <summary>What the button says, or empty when there is none.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.AutoDismiss">
+            <summary>How long a toast holds before it fades. Null for surfaces that stay.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.Rows">
+            <summary>
+            Feature rows under the detail text. Only the opening page has any: a routed status is one thing
+            that has happened, and a list of three is not a way of saying one thing.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.StatusPresentation.FeatureRows">
+            <summary>The rows, never null, so callers do not each have to remember that they can be.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.RouteInput">
+            <summary>What the router needs to know beyond the notice itself.</summary>
+            <param name="Notice">What happened.</param>
+            <param name="Picture">
+            What is on the mirror surface right now. This is the fact that decides whether a status may take
+            the whole surface: with anything worth looking at behind it, almost nothing has earned that.
+            It was a boolean until a held frame turned out to be a third case — see <see cref="T:Orchard.Mirror.Shell.PictureState"/>.
+            </param>
+            <param name="RetryInFlight">Whether Orchard is currently trying to get the connection back.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.RouteInput.#ctor(Orchard.Mirror.Shell.MirrorNotice,Orchard.Mirror.Shell.PictureState,System.Boolean)">
+            <summary>What the router needs to know beyond the notice itself.</summary>
+            <param name="Notice">What happened.</param>
+            <param name="Picture">
+            What is on the mirror surface right now. This is the fact that decides whether a status may take
+            the whole surface: with anything worth looking at behind it, almost nothing has earned that.
+            It was a boolean until a held frame turned out to be a third case — see <see cref="T:Orchard.Mirror.Shell.PictureState"/>.
+            </param>
+            <param name="RetryInFlight">Whether Orchard is currently trying to get the connection back.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RouteInput.Notice">
+            <summary>What happened.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RouteInput.Picture">
+            <summary>
+            What is on the mirror surface right now. This is the fact that decides whether a status may take
+            the whole surface: with anything worth looking at behind it, almost nothing has earned that.
+            It was a boolean until a held frame turned out to be a third case — see <see cref="T:Orchard.Mirror.Shell.PictureState"/>.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.RouteInput.RetryInFlight">
+            <summary>Whether Orchard is currently trying to get the connection back.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.StatusRouter">
+            <summary>Decides how — and whether — one notice is shown.</summary>
+            <remarks>
+            <para>The only place that turns "what happened" into "what the owner sees". It exists because the
+            view used to decide this from a latched phase enum: once a frame had arrived the phase stuck at
+            <c>Ready</c> forever, and that phase hardcoded its own title, so every later message — a lost
+            connection, a decode failure, a sleeping phone — rendered under "READY / All set" with the real
+            text demoted to the body. Errors were invisible for as long as the app had ever worked once.</para>
+            <para>Two rules carry most of the weight. <b>The caller's words always win</b>: a headline that
+            was passed in is never replaced, only defaulted when absent. And <b>a live picture is protected</b>:
+            news that the phone keeps streaming through — a lock, a sound starting — is never allowed to
+            cover it. Everything unrecognised takes the surface, because a silent unknown state is a frozen
+            window with no explanation.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusRouter.ToastHold">
+            <summary>How long a self-dismissing note sits over the picture.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.StatusRouter.ReadyHold">
+            <summary>
+            How long "all set" holds before handing the screen back. Long enough to be read, short
+            enough not to be a wait — the picture is already live behind it, so every extra moment here
+            is a moment of the phone being withheld.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StatusRouter.Route(Orchard.Mirror.Shell.RouteInput)">
+            <summary>Decide how to present one notice.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StatusRouter.AutoDismissFor(Orchard.Mirror.Shell.NoticeKind,Orchard.Mirror.Shell.StatusSurface)">
+            <summary>
+            How long a presentation stays before it stops being shown. For a toast that means fading;
+            for the full surface it means uncovering the mirror behind it.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StatusRouter.SurfaceFor(Orchard.Mirror.Shell.MirrorNotice,Orchard.Mirror.Shell.PictureState)">
+            <summary>
+            Where a notice is allowed to appear. The picture is the thing being protected: a phone that
+            locks, or starts making a sound, carries on streaming, and interrupting that to announce it
+            is the single most irritating thing the old flow did.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StatusRouter.AccentFor(Orchard.Mirror.Shell.NoticeSeverity)">
+            <summary>
+            Colour follows severity alone, so the same seriousness always looks the same. The field this
+            replaces was written from fifteen call sites and read from none, so every state was white.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StatusRouter.SpinnerFor(Orchard.Mirror.Shell.NoticeKind,System.Boolean)">
+            <summary>
+            Something turns only while Orchard is genuinely working. A spinner on a state that has
+            stopped is a lie the owner waits on; a static panel reading "Reconnecting" is a freeze.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.StatusRouter.DefaultHeadlineFor(Orchard.Mirror.Shell.NoticeKind)">
+            <summary>
+            Only ever reached when a caller had nothing specific to say. Every one of these is a real
+            sentence rather than a placeholder, because a status with no headline is a blank panel.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TeardownReason">
+            <summary>Why a session is being taken down, which decides how patient it is worth being.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TeardownReason.WindowClosing">
+            <summary>The owner closed the window.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TeardownReason.UserDisconnect">
+            <summary>The owner pressed disconnect but kept the window.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TeardownReason.StreamInterrupted">
+            <summary>The stream broke and Orchard is reconnecting.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TeardownReason.AttemptFailed">
+            <summary>An attempt failed, usually before there was a session at all.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TeardownPlan">
+            <summary>How long each step of a teardown is given.</summary>
+            <param name="InputRelease">Releasing a held touch contact.</param>
+            <param name="StopVideo">Telling the phone to stop the paired media session.</param>
+            <param name="SessionStop">Closing sockets, decoder and presenter after that.</param>
+            <param name="AgentExit">Letting the agent process finish its own teardown and exit.</param>
+            <param name="TunnelPresumedAlive">
+            Whether the phone can still be reached. When it cannot, waiting on it is pure delay.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TeardownPlan.#ctor(System.TimeSpan,System.TimeSpan,System.TimeSpan,System.TimeSpan,System.Boolean)">
+            <summary>How long each step of a teardown is given.</summary>
+            <param name="InputRelease">Releasing a held touch contact.</param>
+            <param name="StopVideo">Telling the phone to stop the paired media session.</param>
+            <param name="SessionStop">Closing sockets, decoder and presenter after that.</param>
+            <param name="AgentExit">Letting the agent process finish its own teardown and exit.</param>
+            <param name="TunnelPresumedAlive">
+            Whether the phone can still be reached. When it cannot, waiting on it is pure delay.
+            </param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TeardownPlan.InputRelease">
+            <summary>Releasing a held touch contact.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TeardownPlan.StopVideo">
+            <summary>Telling the phone to stop the paired media session.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TeardownPlan.SessionStop">
+            <summary>Closing sockets, decoder and presenter after that.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TeardownPlan.AgentExit">
+            <summary>Letting the agent process finish its own teardown and exit.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TeardownPlan.TunnelPresumedAlive">
+            <summary>
+            Whether the phone can still be reached. When it cannot, waiting on it is pure delay.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TeardownPlan.Total">
+            <summary>The longest the whole teardown can take.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.Teardown">
+            <summary>
+            How long to spend letting go of the phone, which is not the same question every time.
+            </summary>
+            <remarks>
+            <para>The budget used to be a single 700 ms on every path. That number was chosen for one case —
+            a cable pulled out, where the tunnel is already gone and waiting on it is what made the window
+            freeze for seconds — and then applied to the cases where the phone is still perfectly reachable
+            and the message being abandoned is the one that matters.</para>
+            <para>The message that matters is <c>stopAll</c>, which ends the paired AVConference session.
+            The agent's own note records what losing it costs: the phone's media daemon can be left unable
+            to accept another DisplayService channel until the device is restarted. Cycling connect and
+            disconnect is exactly how a person uses this app, so an abandon budget on that path turns a rare
+            wedge into a reliable one.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.Teardown.AgentStopAllTimeout">
+            <summary>
+            The agent's own timeout on the stopAll it sends to the phone. A graceful teardown has to
+            leave room for at least this, or it abandons the one message it was waiting for.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.Teardown.For(Orchard.Mirror.Shell.TeardownReason)">
+            <summary>The budget for one teardown.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TextLine">
+            <summary>One laid-out line and where its top sits.</summary>
+            <param name="Text">The line's text. Empty for the space between paragraphs.</param>
+            <param name="TopDip">The line's top edge, relative to the block's own top.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TextLine.#ctor(System.String,System.Double)">
+            <summary>One laid-out line and where its top sits.</summary>
+            <param name="Text">The line's text. Empty for the space between paragraphs.</param>
+            <param name="TopDip">The line's top edge, relative to the block's own top.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TextLine.Text">
+            <summary>The line's text. Empty for the space between paragraphs.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TextLine.TopDip">
+            <summary>The line's top edge, relative to the block's own top.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TextLayout">
+            <summary>Text broken to fit a width, and how much room it needs.</summary>
+            <param name="Lines">The lines, in order.</param>
+            <param name="Elided">Whether anything was dropped to make it fit.</param>
+            <param name="HeightDip">
+            The height the block genuinely occupies, computed from line heights rather than measured back
+            out of the text engine.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TextLayout.#ctor(System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Shell.TextLine},System.Boolean,System.Double)">
+            <summary>Text broken to fit a width, and how much room it needs.</summary>
+            <param name="Lines">The lines, in order.</param>
+            <param name="Elided">Whether anything was dropped to make it fit.</param>
+            <param name="HeightDip">
+            The height the block genuinely occupies, computed from line heights rather than measured back
+            out of the text engine.
+            </param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TextLayout.Lines">
+            <summary>The lines, in order.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TextLayout.Elided">
+            <summary>Whether anything was dropped to make it fit.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TextLayout.HeightDip">
+            <summary>
+            The height the block genuinely occupies, computed from line heights rather than measured back
+            out of the text engine.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.MeasureText">
+            <summary>Measures how wide a string is, in device-independent pixels, in the current style.</summary>
+            <param name="text">The string to measure.</param>
+            <returns>Its width.</returns>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TextFlow">
+            <summary>
+            Breaks text to a width and reports honestly how much room it needs.
+            </summary>
+            <remarks>
+            <para>Three defects live here, and all three were invisible until the window was scaled.</para>
+            <para>The height used to come from <c>MeasureString</c> and be fed straight back as the drawing
+            rectangle's height, with no headroom — the classic GDI+ case where the final line's descenders
+            are clipped — and then truncated to an int, so everything below crept upward into it. Height is
+            now derived from the line height and the number of lines, which is a fact about the layout
+            rather than a second opinion from the text engine.</para>
+            <para>Overflowing text was trimmed at a word boundary with no ellipsis and no report, so it
+            simply vanished; at the same time <c>NoClip</c> let the last partial line bleed over the buttons
+            underneath. Text that does not fit is now elided with a visible mark and says so, and nothing is
+            ever drawn outside its box.</para>
+            <para>Line breaks were also written into the copy as <c>\n</c>, so a title broke in the same
+            place whether the window was 277 or 900 wide, and then wrapped again on top of that. Breaks are
+            decided here, from the width actually available.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TextFlow.Layout(System.String,System.Double,System.Int32,System.Double,Orchard.Mirror.Shell.MeasureText,System.Boolean)">
+            <summary>Break <paramref name="text"/> to fit, eliding rather than overflowing.</summary>
+            <param name="text">The text. Blank lines in it are paragraph breaks.</param>
+            <param name="maxWidthDip">The width available.</param>
+            <param name="maxLines">The most lines that may be produced. Must be at least one.</param>
+            <param name="lineHeightDip">The distance between successive line tops.</param>
+            <param name="measure">Measures a candidate string in the intended style.</param>
+            <param name="balance">
+            Whether to even out the lines rather than filling each one greedily. For headlines only; see
+            <see cref="M:Orchard.Mirror.Shell.TextFlow.BalancedWidth(System.String,System.Double,Orchard.Mirror.Shell.MeasureText)"/>.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TextFlow.BalancedWidth(System.String,System.Double,Orchard.Mirror.Shell.MeasureText)">
+            <summary>
+            The narrowest column that still breaks this paragraph into the same number of lines.
+            </summary>
+            <remarks>
+            <para>Greedy wrapping fills each line as far as it will go, which is right for body copy and
+            wrong for a headline: it leaves whatever is left over alone on the last line. "Your iPhone on
+            this PC" set greedily across this window came out as "Your iPhone on this" and then "PC" by
+            itself, which is the sort of thing that makes a screen look unconsidered even to someone who
+            could not say why.</para>
+            <para>Narrowing the column until one more squeeze would cost an extra line, then wrapping at
+            that width, distributes the words evenly without changing how many lines the block occupies
+            or how much room it needs. The search is a bisection over the width, so it is deterministic
+            and needs no cooperation from the font.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TextFlow.Wrap(System.String,System.Double,Orchard.Mirror.Shell.MeasureText)">
+            <summary>Greedy word wrap, breaking inside a word only when the word alone will not fit.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TextFlow.Elide(System.String,System.Double,Orchard.Mirror.Shell.MeasureText)">
+            <summary>Trim a line at a word boundary and mark it, so dropped text is visible as dropped.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ToastPhase">
+            <summary>Where a toast has got to in its short life.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPhase.Hidden">
+            <summary>Not on screen, and holding nothing.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPhase.Arriving">
+            <summary>Fading in.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPhase.Holding">
+            <summary>Fully visible and being read.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPhase.Leaving">
+            <summary>Fading out.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ToastFrame">
+            <summary>What the window should draw this tick.</summary>
+            <param name="Phase">Where the toast has got to.</param>
+            <param name="Opacity">How opaque the window should be, from 0 to <see cref="F:Orchard.Mirror.Shell.ToastPolicy.Shown"/>.</param>
+            <param name="Content">What to draw. Meaningless when <paramref name="Phase"/> is hidden.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ToastFrame.#ctor(Orchard.Mirror.Shell.ToastPhase,System.Double,Orchard.Mirror.Shell.StatusPresentation)">
+            <summary>What the window should draw this tick.</summary>
+            <param name="Phase">Where the toast has got to.</param>
+            <param name="Opacity">How opaque the window should be, from 0 to <see cref="F:Orchard.Mirror.Shell.ToastPolicy.Shown"/>.</param>
+            <param name="Content">What to draw. Meaningless when <paramref name="Phase"/> is hidden.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ToastFrame.Phase">
+            <summary>Where the toast has got to.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ToastFrame.Opacity">
+            <summary>How opaque the window should be, from 0 to <see cref="F:Orchard.Mirror.Shell.ToastPolicy.Shown"/>.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ToastFrame.Content">
+            <summary>What to draw. Meaningless when <paramref name="Phase"/> is hidden.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.ToastPolicy">
+            <summary>
+            Owns the timing of the small note that appears over a running mirror.
+            </summary>
+            <remarks>
+            <para>Separate from the window that draws it for the same reason
+            <see cref="T:Orchard.Mirror.Shell.ControlStripPolicy"/> is separate from the strip: this is where the mistakes live, and
+            none of them can be caught by looking at a screenshot. A toast is on screen for under three
+            seconds, so a fade that strobes, a hold that is eaten by its own fade, or a second notice that
+            restarts the first one's animation are all things that happen too quickly to see and too often
+            to tolerate.</para>
+            <para>Two rules carry the weight. <b>The hold is measured from full opacity</b>, so a message is
+            legible for its whole duration rather than for whatever is left after fading in. And <b>anything
+            arriving over a shown note swaps in place</b> rather than cross-fading, because a lock and a
+            sound starting can arrive within a few frames of each other, and two overlapping fades over live
+            video read as a flicker rather than as news. That second rule is what keeps a status repeating on
+            a timer from pumping the opacity, so there is no separate rule for a repeat.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPolicy.Shown">
+            <summary>
+            How opaque a toast gets.
+            </summary>
+            <remarks>
+            Short of 1 for the reason recorded on <see cref="F:Orchard.Mirror.Shell.StripFade.Shown"/> — WinForms drops
+            <c>WS_EX_LAYERED</c> from a form whose opacity is exactly 1, so landing there would add and
+            remove a window style at the end of every fade — and short of it again because this sits over
+            live video, which should stay faintly visible through it.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPolicy.Vanished">
+            <summary>Below this a toast is treated as gone, so the window can be hidden outright.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPolicy.DefaultHold">
+            <summary>Used when a toast arrives with no dismissal time of its own.</summary>
+            <remarks>
+            <see cref="T:Orchard.Mirror.Shell.StatusRouter"/> always sets one, so this is only reached by a caller building a
+            presentation by hand. A toast that stays forever would be a permanent smudge over the phone,
+            so the fallback is a duration rather than an exception.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPolicy.ArriveDuration">
+            <summary>Long enough not to snap, short enough not to delay the words.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPolicy.LeaveDuration">
+            <summary>Slower than arriving, matching the control strip: leaving should not startle.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.ToastPolicy.Nothing">
+            <summary>What a cleared toast holds.</summary>
+            <remarks>
+            Not <c>default</c>. <see cref="T:Orchard.Mirror.Shell.StatusPresentation"/> is a record struct, so its default
+            leaves every string null, and both the width measurement and the paint read
+            <see cref="P:Orchard.Mirror.Shell.StatusPresentation.Detail"/> before they read the phase. Clearing to real empty
+            strings means a stale repaint draws nothing instead of throwing.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ToastPolicy.Phase">
+            <summary>Where the toast has got to.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ToastPolicy.Opacity">
+            <summary>How opaque the window should be right now.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ToastPolicy.Content">
+            <summary>What is being shown.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.ToastPolicy.Visible">
+            <summary>Whether the window has anything to draw at all.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ToastPolicy.Present(Orchard.Mirror.Shell.StatusPresentation)">
+            <summary>
+            Offer one routed presentation to the toast surface.
+            </summary>
+            <remarks>
+            Anything that is not a toast dismisses whatever is up. A full-surface status is about to
+            cover the whole window, and a note fading out on top of it would be the second of two things
+            competing to explain the same event.
+            </remarks>
+            <returns>Whether the presentation was taken.</returns>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ToastPolicy.Dismiss">
+            <summary>Start fading out now, whatever is showing.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ToastPolicy.Clear">
+            <summary>Drop the toast immediately, without a fade.</summary>
+            <remarks>For teardown, where there is no longer a window to fade over.</remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ToastPolicy.Advance(System.TimeSpan)">
+            <summary>Move the toast on by one tick.</summary>
+            <param name="elapsed">Real time since the last call.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ToastPolicy.Ratio(System.TimeSpan,System.TimeSpan)">
+            <summary>How much of a fade one tick is worth.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.ToastPolicy.Approach(System.Double,System.Double,System.Double)">
+            <summary>
+            Move <paramref name="current"/> towards <paramref name="target"/> without passing it.
+            </summary>
+            <remarks>
+            Stepping by a delta and checking the direction afterwards is the arithmetic that made the
+            control strip strobe at ten hertz, so this clamps. It is belt and braces rather than the
+            enforcing bound: <see cref="M:Orchard.Mirror.Shell.ToastPolicy.Advance(System.TimeSpan)"/> settles the opacity onto <see cref="F:Orchard.Mirror.Shell.ToastPolicy.Shown"/> when a
+            fade completes and onto zero when one ends, so an unclamped step here would be corrected
+            within the same call and never reach a caller. Deliberately kept anyway — a helper whose
+            summary is "without passing it" should be true on its own terms.
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.Box">
+            <summary>A rectangle in device-independent pixels.</summary>
+            <param name="X">Left edge.</param>
+            <param name="Y">Top edge.</param>
+            <param name="Width">Width.</param>
+            <param name="Height">Height.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.Box.#ctor(System.Double,System.Double,System.Double,System.Double)">
+            <summary>A rectangle in device-independent pixels.</summary>
+            <param name="X">Left edge.</param>
+            <param name="Y">Top edge.</param>
+            <param name="Width">Width.</param>
+            <param name="Height">Height.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.Box.X">
+            <summary>Left edge.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.Box.Y">
+            <summary>Top edge.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.Box.Width">
+            <summary>Width.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.Box.Height">
+            <summary>Height.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.Box.Bottom">
+            <summary>The bottom edge.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.Box.Right">
+            <summary>The right edge.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.Box.Overlaps(Orchard.Mirror.Shell.Box)">
+            <summary>Whether this box overlaps another at all.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TypeRole">
+            <summary>What a piece of text is for. Roles, never sizes, at the call site.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.Kicker">
+            <summary>The small tracked-out word above a headline.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.Title">
+            <summary>The headline.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.Body">
+            <summary>Supporting paragraphs.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.Button">
+            <summary>A button label.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.RowTitle">
+            <summary>The bold first line of a feature row.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.RowDetail">
+            <summary>The quieter second line of a feature row.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.Toast">
+            <summary>A short note over the live mirror.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeRole.Caption">
+            <summary>Secondary detail, smaller than body.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TypeStyle">
+            <summary>How one role is set.</summary>
+            <param name="SizeDip">Em size in device-independent pixels.</param>
+            <param name="LineHeightDip">Distance between baselines, in device-independent pixels.</param>
+            <param name="Bold">Whether the heavier weight is used.</param>
+            <param name="Display">
+            Whether to ask for the display optical size. Segoe UI Variable ships Display and Text as separate
+            optical sizes: Display is cut for headlines and reads too tight at body size.
+            </param>
+            <param name="TrackingDip">Extra advance between characters, for the tracked-out kicker.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TypeStyle.#ctor(System.Double,System.Double,System.Boolean,System.Boolean,System.Double)">
+            <summary>How one role is set.</summary>
+            <param name="SizeDip">Em size in device-independent pixels.</param>
+            <param name="LineHeightDip">Distance between baselines, in device-independent pixels.</param>
+            <param name="Bold">Whether the heavier weight is used.</param>
+            <param name="Display">
+            Whether to ask for the display optical size. Segoe UI Variable ships Display and Text as separate
+            optical sizes: Display is cut for headlines and reads too tight at body size.
+            </param>
+            <param name="TrackingDip">Extra advance between characters, for the tracked-out kicker.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeStyle.SizeDip">
+            <summary>Em size in device-independent pixels.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeStyle.LineHeightDip">
+            <summary>Distance between baselines, in device-independent pixels.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeStyle.Bold">
+            <summary>Whether the heavier weight is used.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeStyle.Display">
+            <summary>
+            Whether to ask for the display optical size. Segoe UI Variable ships Display and Text as separate
+            optical sizes: Display is cut for headlines and reads too tight at body size.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeStyle.TrackingDip">
+            <summary>Extra advance between characters, for the tracked-out kicker.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Shell.TypeScale">
+            <summary>
+            One type scale, and the spacing that goes with it.
+            </summary>
+            <remarks>
+            <para>The sizes used to be five unrelated magic numbers — 9, 11.5, 12, 12.5 and 24 — three of
+            them within one point of each other and none derived from anything. They are now one modular
+            scale over a single base.</para>
+            <para><b>Spacing comes from this same object, and that is the point of it.</b> The old layout
+            sized type in points, which GDI+ scales by the surface's DPI, while every margin, medallion and
+            button height beside it was a raw device pixel. On a 150% display the text therefore came out
+            half again as large relative to the box it had to fit in — which is what made headlines wrap to
+            three lines, body text collapse to a single clipped line, and the whole page look wrong at a
+            scale nobody had tested. Type and space now scale together or not at all.</para>
+            <para>Everything here is in device-independent pixels. Converting to device pixels is the
+            renderer's single multiplication at the end, so DPI cannot be applied twice.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeScale.BaseDip">
+            <summary>The em size of body text at a scale factor of one.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeScale.Ratio">
+            <summary>The ratio between adjacent steps.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeScale.ReferenceHeightDip">
+            <summary>The surface height the scale factor is measured against — a 390x844 phone window.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Shell.TypeScale.ReferenceWidthDip">
+            <summary>The width of that same reference window.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TypeScale.#ctor(System.Double)">
+            <summary>
+            Build a scale for a surface of this height.
+            </summary>
+            <param name="surfaceHeightDip">
+            The surface height in device-independent pixels. A phone-shaped window is resizable across a
+            wide range, so type set at one fixed size is either enormous in a small window or lost in a
+            large one. This is deliberately not the DPI: that is applied once, by the renderer.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TypeScale.#ctor(System.Double,System.Double)">
+            <summary>
+            Build a scale for a surface of this height and width.
+            </summary>
+            <remarks>
+            <para>Height alone is not enough, and the window this draws into is resizable in both
+            directions. A narrow window has a narrow column, and the headline is the one thing on the
+            page sized to fill it; scaling type by height only meant that at the smallest size the window
+            allows, "Opening secure iPhone tunnel" was set too large for a column that could not hold the
+            word "Opening", and <see cref="T:Orchard.Mirror.Shell.TextFlow"/> did the only thing left to it and broke the word
+            in half.</para>
+            <para>The smaller of the two ratios wins, so whichever dimension is the binding constraint is
+            the one that decides. The floor came down with it: 0.72 was chosen when only height mattered
+            and is too high to rescue the narrowest window.</para>
+            </remarks>
+            <param name="surfaceHeightDip">The surface height in device-independent pixels.</param>
+            <param name="surfaceWidthDip">The surface width, or 0 to size from height alone.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.Factor">
+            <summary>How much larger or smaller than the reference this surface is.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.MarginDip">
+            <summary>The margin down each side of the content.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.TopInsetDip">
+            <summary>
+            Where content starts, measured from the top of the surface. Clears the control strip, which
+            sits across the top of the window and would otherwise cover the kicker.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.EdgeGapDip">
+            <summary>The gap between the content and the window's bottom edge.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.MedallionDip">
+            <summary>
+            The size of the mark above a page's title.
+            </summary>
+            <remarks>
+            Was 72, when the mark sat inside a circle of glass that had to be big enough to hold it.
+            Without the circle the mark is the only thing left, and at 72 it outweighed the headline
+            underneath it. 34 puts it at roughly the same visual weight as one line of body copy, which
+            is the weight a decoration should carry.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.SpinnerDip">
+            <summary>
+            The diameter of the ring that turns while Orchard is working.
+            </summary>
+            <remarks>
+            Its own size rather than a fraction of the mark beside it. It used to be three tenths of the
+            medallion, which was invisible the moment the medallion stopped being 72 across.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.ButtonHeightDip">
+            <summary>The height of a button.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.ButtonGapDip">
+            <summary>The gap between stacked buttons.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.RowIconDip">
+            <summary>
+            The square a feature row's mark is drawn in.
+            </summary>
+            <remarks>
+            The numbers on this and the next two are the ones Apple's own welcome sheets use: a 37-point
+            icon column, 17.5 points from it to the text, and 30 points between rows. They are unusually
+            generous compared with anything else on this surface, and that generosity is most of what
+            makes the pattern read the way it does.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.RowIconGapDip">
+            <summary>The gap between a row's mark and its text.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Shell.TypeScale.RowGapDip">
+            <summary>The gap between one feature row and the next.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TypeScale.For(Orchard.Mirror.Shell.TypeRole)">
+            <summary>How one role is set on this surface.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Shell.TypeScale.GapAfter(Orchard.Mirror.Shell.TypeRole)">
+            <summary>The space between two stacked pieces of content.</summary>
+        </member>
+    </members>
+</doc>

@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.projectorchard.dev/project/v1.json",
+  "title": "Orchard project manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "applicationId",
+    "displayName"
+  ],
+  "properties": {
+    "applicationId": {
+      "type": "string",
+      "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z0-9-]+)+$",
+      "maxLength": 255
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "entryPoint": {
+      "type": "string",
+      "default": "ContentView.swift",
+      "minLength": 1,
+      "maxLength": 512,
+      "not": {
+        "pattern": "(^|[\\\\/])\\.\\.([\\\\/]|$)"
+      }
+    },
+    "minimumIosVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+(\\.[0-9]+){0,2}$",
+      "default": "17.0"
+    },
+    "defaultDevice": {
+      "type": "string",
+      "enum": [
+        "iphone-se-3",
+        "iphone-15",
+        "iphone-15-pro",
+        "iphone-15-pro-max",
+        "ipad-pro-11"
+      ],
+      "default": "iphone-15-pro"
+    },
+    "treatCompatibilityWarningsAsErrors": {
+      "type": "boolean",
+      "default": false
+    }
+  }
+}
+

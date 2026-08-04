@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Orchard.Mirror.Agent.Windows/Orchard.Mirror.Agent.Windows.csproj" />
+    <Project Path="src/Orchard.Mirror.Audio.Windows/Orchard.Mirror.Audio.Windows.csproj" />
+    <Project Path="src/Orchard.Mirror.Media/Orchard.Mirror.Media.csproj" />
+    <Project Path="src/Orchard.Mirror.Probe/Orchard.Mirror.Probe.csproj" />
+    <Project Path="src/Orchard.Mirror.Shell/Orchard.Mirror.Shell.csproj" />
+    <Project Path="src/Orchard.Mirror.Video.Windows/Orchard.Mirror.Video.Windows.csproj" />
+    <Project Path="src/Orchard.Mirror.Windows/Orchard.Mirror.Windows.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Orchard.Mirror.Tests/Orchard.Mirror.Tests.csproj" />
+  </Folder>
+</Solution>

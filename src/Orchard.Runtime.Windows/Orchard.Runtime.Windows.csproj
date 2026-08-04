@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>Orchard.Runtime.Windows</AssemblyName>
+    <RootNamespace>Orchard.Runtime.Windows</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Orchard.Core/Orchard.Core.csproj" />
+    <ProjectReference Include="../Orchard.NativeHost.Windows/Orchard.NativeHost.Windows.csproj" />
+    <ProjectReference Include="../Orchard.Protocol/Orchard.Protocol.csproj" />
+    <ProjectReference Include="../Orchard.Transport.Windows/Orchard.Transport.Windows.csproj" />
+  </ItemGroup>
+</Project>

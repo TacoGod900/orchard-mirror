@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Orchard.Mirror.Audio.Windows</AssemblyName>
+    <RootNamespace>Orchard.Mirror.Audio.Windows</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Orchard.Mirror.Media/Orchard.Mirror.Media.csproj" />
+  </ItemGroup>
+  <!--
+    Windows-only on purpose: this is the paired audio leg's decode and render half. The framing it
+    consumes is platform-neutral and lives in Orchard.Mirror.Media, next to the video framing.
+  -->
+</Project>

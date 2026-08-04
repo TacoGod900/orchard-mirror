@@ -1,0 +1,9 @@
+{
+  "applicationId": "dev.orchard.hello",
+  "displayName": "Hello Orchard",
+  "entryPoint": "ContentView.swift",
+  "minimumIosVersion": "17.0",
+  "defaultDevice": "iphone-15-pro",
+  "treatCompatibilityWarningsAsErrors": false
+}
+

@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.26100.0</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AssemblyName>Orchard.Mirror</AssemblyName>
+    <RootNamespace>Orchard.Mirror.Windows</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Must agree with app.manifest, or the generated ApplicationConfiguration.Initialize() calls
+         SetHighDpiMode with a different mode from the one the manifest already fixed. -->
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Orchard.Mirror.Agent.Windows/Orchard.Mirror.Agent.Windows.csproj" />
+    <ProjectReference Include="../Orchard.Mirror.Audio.Windows/Orchard.Mirror.Audio.Windows.csproj" />
+    <ProjectReference Include="../Orchard.Mirror.Media/Orchard.Mirror.Media.csproj" />
+    <ProjectReference Include="../Orchard.Mirror.Shell/Orchard.Mirror.Shell.csproj" />
+    <ProjectReference Include="../Orchard.Mirror.Video.Windows/Orchard.Mirror.Video.Windows.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="../Orchard.Mirror.Agent/agent.py" Link="agent/agent.py" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Orchard.Mirror.Agent/LICENSE" Link="agent/LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../Orchard.Mirror.Agent/README.md" Link="agent/README.md" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

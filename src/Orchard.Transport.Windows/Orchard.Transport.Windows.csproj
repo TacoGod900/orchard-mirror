@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <AssemblyName>Orchard.Transport.Windows</AssemblyName>
+    <RootNamespace>Orchard.Transport.Windows</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Orchard.Protocol/Orchard.Protocol.csproj" />
+  </ItemGroup>
+</Project>

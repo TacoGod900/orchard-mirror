@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-07-18",
+  "host": {
+    "supportedOperatingSystem": "Windows 11",
+    "minimumWindowsBuild": 22000,
+    "validatedArchitectures": [
+      "x64"
+    ],
+    "plannedArchitectures": [
+      "arm64"
+    ],
+    "ciImage": "windows-2022"
+  },
+  "dotnet": {
+    "sdkVersion": "10.0.203",
+    "rollForward": "latestPatch",
+    "allowPrerelease": false,
+    "sourceOfTruth": "global.json",
+    "requiredForCurrentBootstrap": true
+  },
+  "visualStudio": {
+    "status": "selected-for-native-vertical-slice",
+    "versionRange": "[17.0,18.0)",
+    "validatedVersion": "17.14.37216.2",
+    "architecture": "x64",
+    "requiredComponents": [
+      "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
+      "Microsoft.VisualStudio.Component.Windows11SDK.26100"
+    ],
+    "windowsSdkVersion": "10.0.26100.0",
+    "requiredForMilestone": "native-swift-vertical-slice"
+  },
+  "swift": {
+    "status": "selected-for-native-vertical-slice",
+    "version": "6.3.3",
+    "release": "swift-6.3.3-RELEASE",
+    "buildConfiguration": "+assertions",
+    "target": "x86_64-unknown-windows-msvc",
+    "installChannel": "winget",
+    "packageIdentifier": "Swift.Toolchain",
+    "distributionUrl": "https://download.swift.org/swift-6.3.3-release/windows10/swift-6.3.3-RELEASE/swift-6.3.3-RELEASE-windows10.exe",
+    "artifactName": "swift-6.3.3-RELEASE-windows10.exe",
+    "installerSha256": "235626548F249CD516D3D4D90EEE980DCCAD46F3822DAC1F8E3119B0FEDE94B7",
+    "releaseDate": "2026-06-29",
+    "license": "Apache-2.0",
+    "packageDependencies": [
+      "Microsoft.VCRedist.2015+.x64 >= 14.28.29913.0",
+      "Python.Python.3.10"
+    ],
+    "toolchainDirectory": "6.3.3+Asserts",
+    "runtimeDirectory": "6.3.3",
+    "platformSdkDirectory": "6.3.3/Windows.platform/Developer/SDKs/Windows.sdk",
+    "bundledPythonDirectory": "Python-3.10.1",
+    "swiftBinarySha256": "E1D0A0B20D95A92B22F4906E7CA331A7C8B89BE86B2D9A2D215AC24F753E945A",
+    "toolchainInfoSha256": "6E0ADD8703D9B6574AFC79C2BC3EE8D7139833D94444BEC6EFBA209533BDF470",
+    "toolBinarySha256": {
+      "swift-format.exe": "5057E4ABFBC2BAAA472B91551A31B9093A000AE67D0C0D0E469A02C516F2AF06",
+      "sourcekit-lsp.exe": "29B88224210508A26C4FA7AA2EC28617235F289821896D0DBF1C27E348DFBAC1",
+      "lldb.exe": "EACC0FA1D666FC26822D3823E37C47DBAD5911EBE3D9DA855384C56FBA93323D",
+      "lldb-dap.exe": "6EB837DC5CE11B01D24272F232535082D11C9EB534AA5F8745677A22C0AC7B14"
+    },
+    "requiredForCurrentBootstrap": false,
+    "requiredForMilestone": "native-swift-vertical-slice",
+    "selectionGate": "Swift 6.3.3 is selected for the native vertical slice; its installer and installed binaries are pinned and the native SwiftPM build is proven. Release packaging remains blocked until the full transitive license inventory, clean-machine CI install, debugger probe, and signed-distribution test are recorded."
+  },
+  "packages": {
+    "nuget": {
+      "externalPackageCount": 0,
+      "lockedModeRequired": false,
+      "policyWhenAdded": "Use central version management and packages.lock.json files; restore in locked mode in CI."
+    },
+    "swiftPackageManager": {
+      "externalPackageCount": 0,
+      "resolvedFileRequired": false,
+      "policyWhenAdded": "Commit Package.resolved and verify source provenance, license, and immutable revision or exact version."
+    }
+  }
+}

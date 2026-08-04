@@ -1,0 +1,39 @@
+{
+  "contractVersion": "0.1.0",
+  "semanticInteroperability": "Property order and insignificant whitespace are not semantic; names, enum values, values, array order, and validation limits are semantic.",
+  "canonicalTransport": "canonical/minimal.compact.json",
+  "accepted": [
+    "accepted/semantic-reordered.json",
+    "accepted/reproducible-epoch.json"
+  ],
+  "rejected": [
+    {
+      "path": "rejected/unknown-property.json",
+      "reason": "unknown root property"
+    },
+    {
+      "path": "rejected/wrong-case-property.json",
+      "reason": "case-sensitive property mismatch"
+    },
+    {
+      "path": "rejected/duplicate-property.json",
+      "reason": "duplicate JSON property"
+    },
+    {
+      "path": "rejected/invalid-enum.json",
+      "reason": "unknown compatibility enum value"
+    },
+    {
+      "path": "rejected/duplicate-node-id.json",
+      "reason": "duplicate view identifier"
+    },
+    {
+      "path": "rejected/duplicate-remote-capability.json",
+      "reason": "duplicate unique-list value"
+    },
+    {
+      "path": "rejected/unsafe-control.json",
+      "reason": "bidirectional formatting character in display text"
+    }
+  ]
+}

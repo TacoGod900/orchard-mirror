@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Orchard.Mirror.Audio.Windows</name>
+    </assembly>
+    <members>
+        <member name="T:Orchard.Mirror.Audio.Windows.FdkAacEldDecoder">
+            <summary>
+            Decodes the device's AAC-ELD access units to 16-bit stereo PCM through libfdk-aac.
+            </summary>
+            <remarks>
+            <para>Windows has no AAC-ELD decoder of its own — Media Foundation's AAC decoder covers LC and
+            HE only — so something has to supply one. libfdk-aac is used here rather than FFmpeg or FAAD2
+            because it is not copyleft, which is what ADR 0014 §4 actually requires of the media path.</para>
+            <para><b>This deviates from ADR 0014 §6</b>, which says the decoder will be Orchard's own. That
+            decision was taken when no other non-copyleft option had been identified. The deviation is
+            deliberate and needs the ADR amended or this replaced; see
+            <c>docs/orchard-mirror/AUDIO_2026-08-02.md</c>. Note that writing our own would not change the
+            AAC patent position, which is the same either way.</para>
+            <para>The type deliberately exposes nothing of libfdk-aac, so replacing it later is a one-file
+            change.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Audio.Windows.FdkAacEldDecoder.TransportTypeRawMp4">
+            <summary>Raw access units, with the configuration supplied out of band.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Audio.Windows.FdkAacEldDecoder.FramesDecoded">
+            <summary>Decoded frames handed back to the caller.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Audio.Windows.FdkAacEldDecoder.FramesFailed">
+            <summary>Access units libfdk-aac refused. A handful at startup is normal.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Audio.Windows.FdkAacEldDecoder.TryOpen">
+            <summary>
+            Open a decoder configured for the paired audio leg, or return <see langword="null"/> when
+            libfdk-aac is not present.
+            </summary>
+            <remarks>
+            Absence is a normal outcome rather than an error: it means this machine plays no phone audio,
+            which must not stop the screen from mirroring.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Audio.Windows.FdkAacEldDecoder.TryDecode(System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Int16}@)">
+            <summary>
+            Decode one access unit.
+            </summary>
+            <param name="accessUnit">One complete AAC-ELD access unit.</param>
+            <param name="samples">Interleaved 16-bit stereo PCM, valid until the next call.</param>
+            <returns><see langword="false"/> when this unit produced nothing; the stream continues.</returns>
+        </member>
+        <member name="M:Orchard.Mirror.Audio.Windows.FdkAacEldDecoder.InstallResolver">
+            <summary>
+            Teach the runtime where libfdk-aac lives when it is not beside the application.
+            </summary>
+            <remarks>
+            <c>ORCHARD_FDK_AAC</c> overrides; otherwise the MSYS2 location is tried, which is where a
+            development machine has it. A packaged build is expected to ship the DLL alongside the
+            executable, in which case the default probing finds it and none of this runs.
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Audio.Windows.PairedAudioPlayer">
+            <summary>
+            Plays the phone's paired audio leg: loopback RTP in, sound out.
+            </summary>
+            <remarks>
+            Every stage is optional in the sense that its absence degrades to silence rather than to a
+            failed session. Mirroring a screen without sound is a working product; refusing to mirror
+            because a codec library is missing is not.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Audio.Windows.PairedAudioPlayer.Port">
+            <summary>The loopback port to hand the agent as <c>audioRelayPort</c>.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Audio.Windows.PairedAudioPlayer.FramesPlayed">
+            <summary>Frames decoded and handed to the output device.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Audio.Windows.PairedAudioPlayer.HasHeardAudio">
+            <summary>Whether anything actually audible has come through yet.</summary>
+            <remarks>
+            Not the same as frames arriving. The phone sends this leg continuously whether or not
+            anything is playing, and its silence frames are four bytes that decode to zeroes, so a frame
+            count says only that the stream is up. This says sound is coming out of the phone.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Audio.Windows.PairedAudioPlayer.TryStart">
+            <summary>
+            Start playback, or return <see langword="null"/> when this machine cannot play the stream.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Audio.Windows.PairedAudioPlayer.Describe">
+            <summary>Describe playback for the window's status line and the diagnostics log.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Audio.Windows.WaveOutRenderer">
+            <summary>
+            Plays 16-bit stereo PCM through the default Windows output device.
+            </summary>
+            <remarks>
+            <para>Buffers are small and few on purpose. This audio accompanies a mirrored screen, so a deep
+            queue does not protect against anything a viewer wants — it just puts the sound further behind
+            the picture. The queue is a fixed ring, and when every buffer is still playing the incoming
+            frame is dropped rather than waited on, which keeps the decode thread from becoming the thing
+            that stalls the session.</para>
+            <para><c>waveOut</c> rather than WASAPI: at 10 ms per frame the extra latency is small, and the
+            API cannot deadlock the caller. If lip-sync ever needs the last few milliseconds, this type is
+            the only thing that has to change.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Audio.Windows.WaveOutRenderer.BufferCount">
+            <summary>Frames of buffering. Eight 10 ms frames is 80 ms, enough to ride out scheduling.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Audio.Windows.WaveOutRenderer.FramesPlayed">
+            <summary>Frames handed to the device.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Audio.Windows.WaveOutRenderer.FramesDropped">
+            <summary>Frames dropped because every buffer was still in flight.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Audio.Windows.WaveOutRenderer.TryOpen(System.Int32,System.Int32,System.Int32)">
+            <summary>
+            Open the default output device, or return <see langword="null"/> when there is none.
+            </summary>
+            <param name="sampleRate">Samples per second per channel.</param>
+            <param name="channels">Interleaved channel count.</param>
+            <param name="samplesPerFrame">Samples per channel in one write.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Audio.Windows.WaveOutRenderer.Write(System.ReadOnlySpan{System.Int16})">
+            <summary>Queue one frame of interleaved PCM. Returns false when it was dropped.</summary>
+        </member>
+    </members>
+</doc>

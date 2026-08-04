@@ -1,0 +1,153 @@
+{
+  "profileSchemaVersion": "1",
+  "profileVersion": "1.0.0",
+  "irSchemaVersion": "0.1.0",
+  "statusWeights": {
+    "supported": 100,
+    "partial": 65,
+    "remoteOnly": 20,
+    "unsupported": 0
+  },
+  "capabilities": {
+    "views": {
+      "VStack": { "status": "supported" },
+      "HStack": { "status": "supported" },
+      "ZStack": { "status": "supported" },
+      "Text": { "status": "supported" },
+      "Button": { "status": "supported" },
+      "TextField": { "status": "supported" },
+      "SecureField": { "status": "supported" },
+      "Image": {
+        "status": "partial",
+        "notes": "System symbols render as Orchard placeholders in this milestone."
+      },
+      "Spacer": { "status": "supported" },
+      "Divider": { "status": "supported" },
+      "Toggle": { "status": "supported" },
+      "ProgressView": {
+        "status": "partial",
+        "notes": "Indeterminate and linear styles are supported."
+      },
+      "Label": {
+        "status": "partial",
+        "notes": "Text and system-image labels are supported."
+      },
+      "ScrollView": { "status": "supported" },
+      "NavigationStack": {
+        "status": "partial",
+        "notes": "Single-window navigation rendering is supported; route restoration is pending."
+      },
+      "List": {
+        "status": "partial",
+        "notes": "Static list content is supported; collection diffing is pending."
+      },
+      "Form": {
+        "status": "partial",
+        "notes": "Core form controls are supported."
+      },
+      "Section": {
+        "status": "partial",
+        "notes": "Headers and static children are supported."
+      },
+      "Group": { "status": "supported" },
+      "NavigationLink": {
+        "status": "partial",
+        "notes": "Destination closures are parsed but not yet activated."
+      },
+      "Picker": {
+        "status": "partial",
+        "notes": "Static options are supported."
+      },
+      "DatePicker": {
+        "status": "partial",
+        "notes": "Date-only selection is supported."
+      }
+    },
+    "modifiers": {
+      "padding": { "status": "supported" },
+      "font": { "status": "supported" },
+      "foregroundStyle": {
+        "status": "partial",
+        "notes": "Solid named colours are supported."
+      },
+      "foregroundColor": {
+        "status": "partial",
+        "notes": "Solid named colours are supported."
+      },
+      "background": {
+        "status": "partial",
+        "notes": "Solid named colours are supported."
+      },
+      "cornerRadius": { "status": "supported" },
+      "frame": {
+        "status": "partial",
+        "notes": "Fixed width and height are supported."
+      },
+      "navigationTitle": { "status": "supported" },
+      "disabled": { "status": "supported" },
+      "opacity": { "status": "supported" },
+      "lineLimit": { "status": "supported" },
+      "multilineTextAlignment": { "status": "supported" },
+      "accessibilityLabel": { "status": "supported" },
+      "accessibilityHint": { "status": "supported" },
+      "accessibilityIdentifier": { "status": "supported" },
+      "animation": {
+        "status": "partial",
+        "notes": "Basic property animations are supported."
+      },
+      "onAppear": {
+        "status": "partial",
+        "notes": "Synchronous local handlers are supported."
+      },
+      "tint": { "status": "supported" }
+    },
+    "sourceSymbols": {
+      "ARKit": {
+        "status": "remoteOnly",
+        "notes": "ARKit requires physical Apple sensors.",
+        "remoteCapability": "ARKit"
+      },
+      "RealityKit": {
+        "status": "remoteOnly",
+        "notes": "RealityKit rendering requires Apple validation.",
+        "remoteCapability": "RealityKit"
+      },
+      "PKPaymentAuthorizationController": {
+        "status": "remoteOnly",
+        "notes": "Apple Pay flows require Apple-controlled entitlements and hardware.",
+        "remoteCapability": "Apple Pay"
+      },
+      "HKHealthStore": {
+        "status": "remoteOnly",
+        "notes": "HealthKit data and entitlements require Apple validation.",
+        "remoteCapability": "HealthKit"
+      },
+      "SecureEnclave": {
+        "status": "remoteOnly",
+        "notes": "Secure Enclave operations require Apple hardware.",
+        "remoteCapability": "Secure Enclave"
+      },
+      "CarPlay": {
+        "status": "remoteOnly",
+        "notes": "CarPlay requires Apple validation and approved entitlements.",
+        "remoteCapability": "CarPlay"
+      },
+      "MetalKit": {
+        "status": "remoteOnly",
+        "notes": "Metal translation is not part of the initial local runtime.",
+        "remoteCapability": "Metal"
+      },
+      "StoreKit": {
+        "status": "remoteOnly",
+        "notes": "StoreKit purchase completion requires Apple services.",
+        "remoteCapability": "StoreKit"
+      }
+    }
+  },
+  "reproducibleBuildMetadata": {
+    "timestampEnvironmentVariable": "SOURCE_DATE_EPOCH",
+    "timestampUnit": "wholeSecondsSinceUnixEpoch",
+    "fallbackTimestampUtc": "1970-01-01T00:00:00Z",
+    "volatileProvenance": "outOfBand"
+  }
+}

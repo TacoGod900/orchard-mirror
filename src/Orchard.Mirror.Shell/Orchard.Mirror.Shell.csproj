@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <AssemblyName>Orchard.Mirror.Shell</AssemblyName>
+    <RootNamespace>Orchard.Mirror.Shell</RootNamespace>
+  </PropertyGroup>
+  <!--
+    Platform-neutral on purpose, and the target framework is the guard rather than a convention:
+    `net10.0` has no System.Drawing and no WinForms, so a decision that belongs here cannot quietly
+    reach for a Color, a Rectangle or a Control. Everything in this project is a pure function over
+    plain data, which is the only way any of it can be tested — MirrorForm and OnboardingView live
+    in a WinExe and cannot. PhoneGestures set that precedent; this follows it.
+  -->
+</Project>

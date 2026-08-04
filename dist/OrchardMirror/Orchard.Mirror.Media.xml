@@ -1,0 +1,432 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Orchard.Mirror.Media</name>
+    </assembly>
+    <members>
+        <member name="T:Orchard.Mirror.Media.AacEldAudioCapture">
+            <summary>
+            Receives the paired CoreDevice audio leg and records its AAC-ELD access units to a file.
+            </summary>
+            <remarks>
+            <para>This does not play anything, and deliberately so. The device sends AAC-ELD
+            (<c>AudioStreamMode=8</c>, 48 kHz stereo, 480-sample frames) and Windows has no decoder for it —
+            Media Foundation's AAC decoder covers LC and HE only. ADR 0014 §6 requires Orchard's own
+            decoder rather than a vendored codec, and that decoder does not exist yet.</para>
+            <para>What blocks writing it is a reference recording: an AAC-ELD stream cannot be synthesised
+            locally, because no encoder for it is installed and its access units carry no sync word to
+            re-frame from. So this class exists to produce the input the decoder work needs, and to prove
+            the leg is wired end to end, without pretending to be playback.</para>
+            <para>The output is length-prefixed access units — a 4-byte big-endian length before each — the
+            same shape <c>eng/orchard-mirror/analyze-rtp-capture.py</c> already reads for video.</para>
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Media.AacEldAudioCapture.Port">
+            <summary>The loopback port to hand the agent as <c>audioRelayPort</c>.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.AacEldAudioCapture.AccessUnitsCaptured">
+            <summary>Access units written so far.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.AacEldAudioCapture.TryStart(System.String)">
+            <summary>
+            Start capturing, or return <see langword="null"/> when no capture path is configured.
+            </summary>
+            <param name="path">
+            Where to write the access units. Set through <c>ORCHARD_MIRROR_AUDIO_CAPTURE</c>; when it is
+            unset the audio leg is never requested, which keeps the device from encoding a stream nobody
+            consumes.
+            </param>
+        </member>
+        <member name="M:Orchard.Mirror.Media.AacEldAudioCapture.Describe">
+            <summary>Describe what was captured, for the window's status line.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.AacEldAudioLeg">
+            <summary>
+            Turns the paired CoreDevice audio leg's RTP datagrams into AAC-ELD access units.
+            </summary>
+            <remarks>
+            <para>The device answers <c>start-audio-stream</c> with <c>RxPayloadType=101</c> and
+            <c>AudioStreamMode=8</c>, which is Apple AAC-ELD at 48 kHz stereo — see
+            <see cref="F:Orchard.Mirror.Media.AacEldAudioLeg.SamplesPerFrame"/> for the frame length, which is not what it is usually reported to
+            be. Unlike the video leg there is no fragmentation and no aggregation scheme:
+            <b>one RTP payload is exactly one access unit</b>, carried raw with no AU-header section, so
+            this class is framing and loss accounting rather than a depacketizer.</para>
+            <para>Loss is counted rather than concealed. A dropped 10 ms frame is inaudible on its own, but
+            the count is what tells an operator whether silence means "no audio playing" or "the stream is
+            falling apart", and the highest sequence number is what the agent's RTCP receiver reports back —
+            without which the device reaps the audio session after about twenty seconds.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Media.AacEldAudioLeg.PayloadType">
+            <summary>Payload type the device assigns to the paired audio leg.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.AacEldAudioLeg.SampleRate">
+            <summary>Sample rate of the decoded stream, and the RTP clock rate of this leg.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.AacEldAudioLeg.Channels">
+            <summary>Decoded channel count.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.AacEldAudioLeg.SamplesPerFrame">
+            <summary>Samples per channel in one access unit. 480 at 48 kHz is a 10 ms frame.</summary>
+            <remarks>
+            Measured off the device, not read from a cookie. The RTP timestamp advances by exactly 480
+            per packet on a 48 kHz clock, and feeding 200 real access units to a reference decoder
+            configured for 480 decodes all 200 cleanly at full scale, while configuring it for 512
+            manages 50 before failing to parse. See <see cref="P:Orchard.Mirror.Media.AacEldAudioLeg.AudioSpecificConfig"/>.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Media.AacEldAudioLeg.AudioSpecificConfig">
+            <summary>
+            The AudioSpecificConfig an AAC-ELD decoder must be initialised with for this stream:
+            AOT 39, 48 kHz, stereo, and the frame length in <see cref="F:Orchard.Mirror.Media.AacEldAudioLeg.SamplesPerFrame"/>.
+            </summary>
+            <remarks>
+            <para>Apple calls this the magic cookie. It is fixed for the mode the device negotiates, so
+            it is stated here rather than parsed out of a stream that never carries it.</para>
+            <para><b>This is not the value the ecosystem uses.</b> pymobiledevice3 hardcodes
+            <c>F8 E6 40 00</c> — as does ADR 0014 §6, which took it from there — and that value sets
+            <c>frameLengthFlag</c> to 0, declaring 512-sample frames. The device sends 480. A reference
+            decoder given <c>F8 E6 40 00</c> fails on real access units; given <c>F8 E6 50 00</c> it
+            decodes them all. pymobiledevice3 gets away with it because it also passes AudioToolbox
+            <c>mFramesPerPacket = 480</c> alongside the cookie.</para>
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Media.AacEldAudioLeg.AccessUnitsReceived">
+            <summary>Access units delivered to the caller.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.AacEldAudioLeg.AccessUnitsLost">
+            <summary>Access units the network lost, inferred from gaps in the sequence numbers.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.AacEldAudioLeg.DatagramsRejected">
+            <summary>Datagrams rejected as malformed, wrong payload type, or empty.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.AacEldAudioLeg.ExtendedHighestSequenceNumber">
+            <summary>Extended highest sequence number seen, as RTCP receiver reports define it.</summary>
+            <remarks>High 16 bits count sequence-number wraps; low 16 bits are the sequence number.</remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Media.AacEldAudioLeg.TryReadAccessUnit(System.ReadOnlySpan{System.Byte},System.ReadOnlySpan{System.Byte}@)">
+            <summary>
+            Extract the access unit from one received datagram.
+            </summary>
+            <param name="datagram">A datagram as it arrived from the relay socket.</param>
+            <param name="accessUnit">The AAC-ELD access unit, as a slice of <paramref name="datagram"/>.</param>
+            <returns>
+            <see langword="false"/> for anything that is not a payload-bearing audio packet — malformed
+            RTP, RTCP, another payload type, or an empty payload. These arrive from a socket, so they
+            are expected inputs and never throw.
+            </returns>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcAccessUnit">
+            <summary>A complete HEVC picture assembled from the RTP packets sharing one timestamp.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcAccessUnit.#ctor(System.UInt32,System.Collections.Generic.IReadOnlyList{System.Byte[]},System.Boolean)">
+            <summary>A complete HEVC picture assembled from the RTP packets sharing one timestamp.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcAccessUnitAssembler">
+            <summary>
+            Groups depacketized HEVC NAL units into access units. RFC 7798 defines the RTP marker bit as the
+            final packet of an access unit. A timestamp change before that marker means a packet was lost;
+            the incomplete picture is discarded rather than sent to a hardware decoder.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcNalType">
+            <summary>NAL unit types this code reasons about (ITU-T H.265 Table 7-1, RFC 7798 §4.4).</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.HevcNalType.AggregationPacket">
+            <summary>RFC 7798 §4.4.2 aggregation packet — several whole NAL units in one RTP payload.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.HevcNalType.FragmentationUnit">
+            <summary>RFC 7798 §4.4.3 fragmentation unit — one NAL unit split across RTP payloads.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.HevcNalType.PayloadContentInformation">
+            <summary>RFC 7798 §4.4.4 PACI-carrying packet.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcNalType.IsRandomAccessPoint(System.Int32)">
+            <summary>True for the picture types a decoder can start from.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcNalType.IsIdr(System.Int32)">
+            <summary>True for an IDR picture that clears all prior decoder references.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcNalType.IsCodedSlice(System.Int32)">
+            <summary>True for any coded-slice NAL unit.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcNalType.IsParameterSet(System.Int32)">
+            <summary>True for a parameter set, which must be kept and replayed to start a decoder.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcNalType.Of(System.ReadOnlySpan{System.Byte})">
+            <summary>Read the 6-bit NAL unit type from a 2-byte NAL header.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcDepacketizer">
+             <summary>
+             Reassembles RFC 7798 RTP/HEVC payloads into whole NAL units.
+            
+             <para>Three packet shapes carry video. A payload whose type is below 48 is a single NAL unit and
+             is emitted as-is. Type 48 is an aggregation packet holding several length-prefixed NAL units.
+             Type 49 is a fragmentation unit, one NAL unit spread over consecutive packets, which this class
+             buffers until the end fragment arrives.</para>
+            
+             <para>The instance is stateful because fragment reassembly spans packets. Feed payloads in
+             arrival order and call <see cref="M:Orchard.Mirror.Media.HevcDepacketizer.Reset"/> when the stream restarts.</para>
+             </summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.HevcDepacketizer.DisplayServiceTrailer">
+            <summary>
+            Apple's DisplayService appends this fixed 14-byte footer after a coded-slice NAL. It is not
+            part of the HEVC bitstream — Apple's own receiver strips it before decoding, and a plain
+            RFC 7798 reassembly would hand it to the decoder as trailing slice data. It is matched as an
+            exact suffix, so this is a no-op on any stream that does not carry it.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.HevcDepacketizer.DroppedFragments">
+            <summary>Number of fragmented NAL units abandoned because a fragment went missing.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcDepacketizer.Reset">
+            <summary>Forget any half-reassembled fragment. Call when the stream restarts.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcDepacketizer.Depacketize(System.ReadOnlySpan{System.Byte},System.Collections.Generic.List{System.Byte[]})">
+            <summary>
+            Depacketize one RTP payload, appending every NAL unit it completes to <paramref name="output"/>.
+            A payload that only continues a fragment appends nothing. Malformed payloads are discarded
+            rather than throwing — these come off a socket, and one bad datagram must not stop the stream.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcDepacketizer.ReadAggregationPacket(System.ReadOnlySpan{System.Byte},System.Collections.Generic.List{System.Byte[]})">
+             <summary>
+             RFC 7798 §4.4.2: a 2-byte payload header, then repeated 16-bit-length-prefixed NAL units.
+            
+             <para>The DONL/DOND fields are only present when <c>sprop-max-don-diff</c> is greater than
+             zero, which requires out-of-band signalling that Apple's DisplayService does not use. A
+             stream that did carry them would misparse here, so the sizes are bounds-checked and a
+             payload that does not divide cleanly is abandoned rather than emitting garbage NAL units.</para>
+             </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcDepacketizer.ReadFragmentationUnit(System.ReadOnlySpan{System.Byte},System.Collections.Generic.List{System.Byte[]})">
+             <summary>
+             RFC 7798 §4.4.3: a 2-byte payload header, then a 1-byte FU header carrying a start bit, an
+             end bit, and the real NAL unit type of the fragmented unit.
+            
+             <para>The reassembled NAL unit header is the payload header with its type field replaced by
+             the FU header's type, so layer id and temporal id survive.</para>
+             </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcDxvaPictureData">
+            <summary>
+            The coded buffers consumed by a DXVA HEVC decoder: Annex-B-prefixed VCL NAL units, padded to the
+            driver's 128-byte boundary, and one 12-byte <c>DXVA_Slice_HEVC_Short</c> entry per slice.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcDxvaPictureData.#ctor(System.Byte[],System.Byte[],System.Int32)">
+            <summary>
+            The coded buffers consumed by a DXVA HEVC decoder: Annex-B-prefixed VCL NAL units, padded to the
+            driver's 128-byte boundary, and one 12-byte <c>DXVA_Slice_HEVC_Short</c> entry per slice.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcShortTermReference">
+            <summary>One delta picture-order-count entry in an HEVC short-term reference set.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcShortTermReference.#ctor(System.Int32,System.Boolean)">
+            <summary>One delta picture-order-count entry in an HEVC short-term reference set.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcShortTermReferencePictureSet">
+            <summary>A parsed HEVC short-term reference-picture set.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcShortTermReferencePictureSet.#ctor(System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Media.HevcShortTermReference},System.Int32)">
+            <summary>A parsed HEVC short-term reference-picture set.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcSequenceParameterSet">
+            <summary>The SPS fields required by the Windows HEVC picture-parameter contract.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcSequenceParameterSet.#ctor(System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Media.HevcShortTermReferencePictureSet},System.Boolean,System.Int32)">
+            <summary>The SPS fields required by the Windows HEVC picture-parameter contract.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.HevcSequenceParameterSet.UnspecifiedMatrixCoefficients">
+            <summary>
+            The value H.265 infers for <c>matrix_coeffs</c> when the stream does not describe its
+            colour. It means "unspecified", not "BT.601": nothing may read it as a licence to guess.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcSequenceParameterSet.ReadVideoSignalType(Orchard.Mirror.Media.HevcBitReader@,System.Boolean@,System.Int32@)">
+            <summary>
+            Reads the head of the VUI as far as <c>video_signal_type</c>, which is where a stream says
+            whether its luma spans 16..235 or 0..255. Everything before it is skipped rather than kept:
+            the aspect-ratio and overscan fields are variable width, so they have to be walked exactly
+            even though nothing here wants them.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcPictureParameterSet">
+            <summary>The PPS fields required by the Windows HEVC picture-parameter contract.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcPictureParameterSet.#ctor(System.Int32,System.Int32,System.Boolean,System.Boolean,System.Int32,System.Boolean,System.Boolean,System.Int32,System.Int32,System.Int32,System.Boolean,System.Boolean,System.Boolean,System.Int32,System.Int32,System.Int32,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{System.Int32},System.Collections.Generic.IReadOnlyList{System.Int32},System.Boolean,System.Boolean,System.Boolean,System.Boolean,System.Int32,System.Int32,System.Boolean,System.Int32,System.Boolean)">
+            <summary>The PPS fields required by the Windows HEVC picture-parameter contract.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.HevcSliceHeader">
+            <summary>The portion of an HEVC slice header required to maintain the DXVA decoded-picture buffer.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcSliceHeader.#ctor(System.Int32,System.Int32,System.Int32,System.Boolean,System.Boolean,System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Media.HevcShortTermReference},System.Int32,System.Int32)">
+            <summary>The portion of an HEVC slice header required to maintain the DXVA decoded-picture buffer.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcSliceHeader.TryParse(System.ReadOnlySpan{System.Byte},Orchard.Mirror.Media.HevcPictureParameterSet,Orchard.Mirror.Media.HevcSequenceParameterSet,Orchard.Mirror.Media.HevcSliceHeader@)">
+            <summary>Parse the first independent slice of a picture through its short-term RPS.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.HevcSliceHeader.TryReadPictureParameterSetId(System.ReadOnlySpan{System.Byte},System.Int32@)">
+            <summary>Read the PPS id without requiring cached parameter sets.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.LatestFrameBuffer`1">
+            <summary>
+            A small producer/consumer queue for real-time media. Once full it discards the oldest item so
+            latency remains bounded; a consumer can also take only the newest item and discard everything
+            that has already become stale.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.LatestFrameBuffer`1.TryDequeueLatest(`0@)">
+            <summary>
+            Removes the newest item and discards any older items queued before it. This is the normal
+            presentation operation: showing an old frame merely turns scheduling delay into visible lag.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.LatestFrameBuffer`1.TryDequeueOldest(`0@)">
+            <summary>
+            Removes the oldest queued item without discarding newer items. Predictive video decoders
+            must use this operation because later coded pictures can reference every earlier picture.
+            Presentation may skip decoded output, but decode order itself must remain contiguous.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.MirrorStreamAction">
+            <summary>What the session should do about the state of the stream.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamAction.Streaming">
+            <summary>Frames are arriving and being presented. Nothing to do.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamAction.Asleep">
+            <summary>The phone's screen went dark. Hold the session and wait to be told to wake it.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamAction.Woke">
+            <summary>The phone just came back. Ordinary input applies again.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamAction.RequestKeyframe">
+            <summary>Packets are flowing but no picture is reaching the screen; ask for a keyframe.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamAction.Reconnect">
+            <summary>The session is unrecoverable in place and must be torn down.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.MirrorStreamMonitor">
+            <summary>
+            Decides whether a quiet stream means the phone is asleep, the decoder is stuck, or the session
+            is gone.
+            </summary>
+            <remarks>
+            <para>A dark phone and a dead session are indistinguishable from the stream alone: both simply
+            stop sending. The discriminator is the CoreDevice tunnel, so the caller probes it when
+            <see cref="M:Orchard.Mirror.Media.MirrorStreamMonitor.NeedsTunnelProbe(System.TimeSpan)"/> says the answer matters, and passes the result in.</para>
+            <para>Getting this wrong is expensive rather than cosmetic. A sleeping iPhone stops advertising
+            RemotePairing entirely, so once the session is dropped there is nothing left to rediscover over
+            Wi-Fi — treating sleep as a lost session strands the user until they pick the phone up.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamMonitor.PacketStallLimit">
+            <summary>
+            How long the stream may be silent before it means something. Pulling the USB cable kills the
+            tunnel instantly, so anything longer is dead time the user watches.
+            </summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamMonitor.FrameStallLimit">
+            <summary>How long a picture may be stale before a fresh random-access frame is requested.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamMonitor.FrameRecoveryLimit">
+            <summary>How long keyframe requests may go unanswered before the session is abandoned.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamMonitor.DarkPeakLuma">
+            <summary>
+            Brightest luma sample at or below which the phone's display is considered switched off.
+            </summary>
+            <remarks>
+            Measured on the device: an off display peaks at about 5, a lit lock screen at 255. Peak
+            rather than average is what keeps a dark-themed app -- black background, white text -- on
+            the awake side of this line.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Media.MirrorStreamMonitor.DarkSettleTime">
+            <summary>
+            How long the picture must stay dark before the phone is called asleep.
+            </summary>
+            <remarks>
+            Long enough to ride out a fade to black in a video or a screen transition, short enough that
+            a user who locked the phone is not left watching a black window wondering.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Media.MirrorStreamMonitor.IsAsleep">
+            <summary>Whether the phone is currently believed to be asleep.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.MirrorStreamMonitor.NeedsTunnelProbe(System.TimeSpan)">
+            <summary>Does the tunnel have to be probed before <see cref="M:Orchard.Mirror.Media.MirrorStreamMonitor.Evaluate(System.TimeSpan,System.TimeSpan,System.Boolean,System.TimeSpan,System.Nullable{System.Boolean})"/> can decide?</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.MirrorStreamMonitor.Evaluate(System.TimeSpan,System.TimeSpan,System.Boolean,System.TimeSpan,System.Nullable{System.Boolean})">
+            <summary>
+            Classify the current state of the stream.
+            </summary>
+            <param name="packetAge">Time since the last RTP packet of any kind.</param>
+            <param name="frameAge">Time since a decoded picture was last presented.</param>
+            <param name="tunnelAlive">
+            Whether the CoreDevice tunnel still answers. Only consulted when
+            <see cref="M:Orchard.Mirror.Media.MirrorStreamMonitor.NeedsTunnelProbe(System.TimeSpan)"/> is <see langword="true"/> for <paramref name="packetAge"/>.
+            </param>
+            <param name="darkFor">
+            How long the decoded picture has been continuously dark, or <see cref="F:System.TimeSpan.Zero"/> when
+            it is not. The phone keeps streaming while its display is off, so this — not silence — is
+            what an ordinary sleep looks like.
+            </param>
+            <param name="deviceAwake">
+            What the phone itself last said, or <see langword="null"/> when it has not been asked or
+            could not answer. Only <see langword="true"/> changes anything: it means a gap in the stream
+            is a stall rather than a sleep, because the device is known to be up.
+            </param>
+            <returns>
+            <see cref="F:Orchard.Mirror.Media.MirrorStreamAction.Woke"/> is returned exactly once per sleep, and the caller must
+            restart its frame clock when it sees it: a phone that slept for a minute has a minute-old
+            picture, and that is the sleep rather than a stall.
+            </returns>
+        </member>
+        <member name="T:Orchard.Mirror.Media.RtpLoopbackReceiver">
+            <summary>
+            Receives RTP datagrams relayed by the Python CoreDevice agent on a private loopback UDP port.
+            The socket is bound before the agent negotiates DisplayService, so the first packet cannot race
+            receiver setup.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.RtpLoopbackReceiver.#ctor">
+            <summary>Bind an ephemeral IPv4 loopback port.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.RtpLoopbackReceiver.Port">
+            <summary>The bound port to pass to the agent's <c>start-video</c> command.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.RtpLoopbackReceiver.ReceiveAsync(System.Threading.CancellationToken)">
+            <summary>Receive one complete UDP datagram. The returned array owns its bytes.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.RtpLoopbackReceiver.Dispose">
+            <summary>Close the loopback socket and wake a pending receive.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Media.RtpPacket">
+             <summary>
+             One parsed RTP packet (RFC 3550 §5.1). Only the fields Orchard Mirror needs are surfaced: the
+             sequence number, to notice loss and reordering; the timestamp, to group packets into an access
+             unit; the marker bit, which HEVC uses to flag the last packet of an access unit; and the payload.
+            
+             <para><see cref="P:Orchard.Mirror.Media.RtpPacket.Payload"/> is a slice of the caller's buffer, not a copy, so it is only valid
+             while that buffer is.</para>
+             </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.RtpPacket.Marker">
+            <summary>For HEVC, set on the final packet of an access unit (RFC 7798 §4.4).</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Media.RtpPacket.SequenceNumber">
+            <summary>Increments by one per packet and wraps at 16 bits.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Media.RtpPacket.TryParse(System.ReadOnlySpan{System.Byte},Orchard.Mirror.Media.RtpPacket@)">
+            <summary>
+            Parse one datagram. Returns false for anything that is not a well-formed version-2 RTP
+            packet, rather than throwing: these arrive from a socket, so a malformed or truncated
+            datagram is an expected input and must not be able to stop the stream.
+            </summary>
+        </member>
+    </members>
+</doc>

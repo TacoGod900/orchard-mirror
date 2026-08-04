@@ -1,0 +1,73 @@
+name: Orchard Mirror feasibility
+
+on:
+  push:
+    branches:
+      - codex/orchard-mirror-feasibility
+    paths:
+      - .github/workflows/orchard-mirror-feasibility.yml
+      - eng/orchard-mirror/**
+      - docs/orchard-mirror/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orchard-mirror-feasibility-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  collect-static-macos-evidence:
+    name: Static evidence (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - macos-15
+          - macos-26
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Collect metadata-only evidence
+        shell: bash
+        run: |
+          bash -n eng/orchard-mirror/collect-macos-evidence.sh
+          bash -n eng/orchard-mirror/capture-first-pairing.sh
+          bash -n eng/orchard-mirror/summarize-capture.sh
+          bash eng/orchard-mirror/capture-first-pairing.sh --self-test
+          bash eng/orchard-mirror/collect-macos-evidence.sh \
+            "artifacts/orchard-mirror/${{ matrix.os }}"
+
+      - name: Enforce artifact safety limits
+        shell: bash
+        run: |
+          report_root="artifacts/orchard-mirror/${{ matrix.os }}"
+          test -f "${report_root}/SUMMARY.md"
+          if find "${report_root}" -type f -size +5M -print | grep -q .; then
+            echo "::error::A report exceeded 5 MiB. Refusing to upload the artifact."
+            find "${report_root}" -type f -size +5M -print
+            exit 1
+          fi
+          unexpected="$(find "${report_root}" -type f \
+            ! -name '*.txt' ! -name '*.md' -print)"
+          if [[ -n "${unexpected}" ]]; then
+            echo "::error::The report contains a non-text artifact."
+            printf '%s\n' "${unexpected}"
+            exit 1
+          fi
+
+      - name: Upload evidence report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: orchard-mirror-macos-evidence-${{ matrix.os }}
+          path: artifacts/orchard-mirror/${{ matrix.os }}
+          if-no-files-found: error
+          retention-days: 7

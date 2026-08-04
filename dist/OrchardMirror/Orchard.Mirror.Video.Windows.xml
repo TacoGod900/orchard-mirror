@@ -1,0 +1,161 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Orchard.Mirror.Video.Windows</name>
+    </assembly>
+    <members>
+        <member name="T:Orchard.Mirror.Video.Windows.D3D11HevcDecoder">
+            <summary>
+            Owns a driver-provided D3D11 HEVC Main decoder and its NV12 decoded-picture surfaces. Creation is
+            capability-gated: <see cref="M:Orchard.Mirror.Video.Windows.D3D11HevcDecoder.TryCreate(System.Int32,System.Int32,System.Int32)"/> returns null when the process has no usable hardware
+            decoder, while failures after a supported decoder has been selected remain visible.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Video.Windows.D3D11HevcDecoder.OutputTexture">
+            <summary>The NV12 texture array populated by the decoder.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.D3D11HevcDecoder.ReadOutputNv12(System.Int32)">
+            <summary>
+            Copies one decoded NV12 surface to tightly packed CPU memory. The live presenter never uses
+            this path; it exists so recorded-stream diagnostics can compare Orchard's hardware output
+            byte-for-byte with an independent decoder.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.D3D11HevcDecoder.ReadOutputPeakLuma(System.Int32)">
+            <summary>
+            Brightest luma sample in the decoded picture, over a sparse grid.
+            </summary>
+            <param name="outputIndex">The decoder surface holding the picture.</param>
+            <returns>0 to 255, or -1 when the surface could not be read.</returns>
+            <remarks>
+            <para>This exists to tell an iPhone whose display has been switched off from one that merely
+            has something dark on it. Measured against the device, an off display decodes to a peak of
+            about 5 while a lit lock screen peaks at 255, so the two do not overlap.</para>
+            <para>Peak rather than mean, deliberately: a dark-themed app is mostly black but its text
+            and icons still reach full white, so its mean is low while its peak is not. Averaging would
+            call that screen off and press Home under someone who was reading.</para>
+            <para>Only NV12's first plane is touched, which is luma, and only every fourth pixel of
+            every fourth row. The staging texture is kept between calls because the alternative is
+            creating and destroying a full-frame surface several times a second.</para>
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Video.Windows.DxgiFlipPresenter">
+            <summary>
+            A waitable two-buffer flip-model swap chain attached to an HWND. Decoder surfaces remain NV12;
+            D3D11's hardware video processor converts the selected surface directly into the BGRA back
+            buffer, with no CPU readback or Store codec involved.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.FrameLatencyWaitableObject">
+            <summary>
+            The handle remains owned by DXGI and is valid until this presenter is disposed. It must not
+            be closed by the caller.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.SourceWidth">
+            <summary>
+            The width of the decoded frame that actually carries screen pixels. CoreDevice pads the
+            encoded picture up to a coding-block multiple, so the surplus columns must be cropped away
+            instead of being scaled into the window as a black margin.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.SourceHeight">
+            <summary>The height of the decoded frame that actually carries screen pixels.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.ColourSpace">
+            <summary>
+            The packed <c>D3D11_VIDEO_PROCESSOR_COLOR_SPACE</c> this presenter told the driver its input
+            uses. It belongs to the stream, so a stream that changes its colour needs a new presenter.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.PrepareDecodedSurface(System.Int32)">
+            <summary>
+            Enqueues a GPU-side snapshot of the just-decoded NV12 surface. D3D11 command ordering keeps
+            decode, copy, video processing, and presentation in sequence without a CPU readback fence.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.TryCreate(System.IntPtr,Orchard.Mirror.Video.Windows.D3D11HevcDecoder,System.Int32,System.Int32,Orchard.Mirror.Video.Windows.HevcDecodeSubmission)">
+            <summary>
+            Creates a presenter for a decoded stream, taking the crop and the colour signalling from the
+            submission that produced it rather than assuming either.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.TryCreate(System.IntPtr,Orchard.Mirror.Video.Windows.D3D11HevcDecoder,System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean,System.Int32)">
+            <param name="windowHandle">The HWND the swap chain presents into.</param>
+            <param name="decoder">The decoder owning the NV12 surfaces to present.</param>
+            <param name="outputWidth">Back-buffer width, matching the target window's client area.</param>
+            <param name="outputHeight">Back-buffer height, matching the target window's client area.</param>
+            <param name="sourceWidth">
+            Width of the decoded region to scale into the window, or 0 for the whole decoded frame.
+            </param>
+            <param name="sourceHeight">
+            Height of the decoded region to scale into the window, or 0 for the whole decoded frame.
+            </param>
+            <param name="videoFullRange">
+            The stream's <c>video_full_range_flag</c>. False — the value H.265 infers when a stream says
+            nothing — means the luma spans 16..235 and must be stretched to fill the display.
+            </param>
+            <param name="matrixCoefficients">The stream's <c>matrix_coeffs</c> (H.265 Table E.5).</param>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.TryPresent(System.Int32,System.UInt32,System.String,System.Memory{System.Byte})">
+            <summary>
+            Waits until DXGI can accept another frame, converts the selected NV12 decode surface into the
+            current back buffer, and presents it. A timeout returns false so the caller can drop the stale
+            frame rather than blocking the receive loop.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.IsPlausibleCrop(System.Int32,System.Int32)">
+            <summary>
+            A crop is believable only when it lands inside the decoded frame and trims no more than the
+            encoder's block-alignment padding, which is bounded by one 64-sample coding tree unit.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.DxgiFlipPresenter.StreamColourSpace(System.Boolean,System.Int32)">
+             <summary>
+             Describes an HEVC stream's colour to Direct3D as a packed
+             <c>D3D11_VIDEO_PROCESSOR_COLOR_SPACE</c>: one bit each for usage, RGB range, YCbCr matrix
+             and xvYCC, then two bits of nominal range.
+            
+             <para>Told nothing, the driver measured on this machine passed studio-range luma straight
+             through — black arrived as RGB 16 and white as 235, costing a seventh of the contrast and
+             laying a grey haze over every black the phone displays. The stream says which range it uses;
+             this repeats it rather than letting the driver assume.</para>
+             </summary>
+             <param name="videoFullRange">The stream's <c>video_full_range_flag</c>.</param>
+             <param name="matrixCoefficients">The stream's <c>matrix_coeffs</c> (H.265 Table E.5).</param>
+        </member>
+        <member name="T:Orchard.Mirror.Video.Windows.HevcDecodeSubmission">
+            <summary>
+            Driver-ready HEVC picture data. DirectX Video Acceleration consumes parsed picture parameters,
+            scaling matrices and slice locations alongside the coded bytes; it does not accept Annex-B NAL
+            units alone. The platform-neutral HEVC parser produces this contract.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.HevcDecodeSubmission.#ctor(System.ReadOnlyMemory{System.Byte},System.ReadOnlyMemory{System.Byte},System.ReadOnlyMemory{System.Byte},System.ReadOnlyMemory{System.Byte},System.Int32,System.Int32,System.Int32,System.Int32,System.Boolean,System.Int32)">
+            <summary>
+            Driver-ready HEVC picture data. DirectX Video Acceleration consumes parsed picture parameters,
+            scaling matrices and slice locations alongside the coded bytes; it does not accept Annex-B NAL
+            units alone. The platform-neutral HEVC parser produces this contract.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Video.Windows.HevcIdrSubmissionBuilder">
+            <summary>
+            Builds driver-ready DXVA submissions for a sustained HEVC stream. Parameter sets are cached,
+            picture order counts are unwrapped, and decoder surfaces are tracked as a decoded
+            picture buffer. A missing reference fails closed until the next random-access picture.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Video.Windows.HevcIdrSubmissionBuilder.RequiresRandomAccessPicture">
+            <summary>True until a random-access picture has established a valid decoded-picture buffer.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Video.Windows.HevcIdrSubmissionBuilder.LastFailureReason">
+            <summary>The stable diagnostic reason for the most recent rejected access unit.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Video.Windows.HevcIdrSubmissionBuilder.Reset">
+            <summary>Forget parameter sets and all decoded references after a stream restart.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Video.Windows.VideoHardwareException">
+            <summary>A Direct3D video call failed after a hardware decoder was selected.</summary>
+        </member>
+    </members>
+</doc>

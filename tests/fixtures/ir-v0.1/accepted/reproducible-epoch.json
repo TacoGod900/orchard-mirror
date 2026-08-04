@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "0.1.0",
+  "applicationId": "dev.orchard.fixture",
+  "displayName": "Fixture",
+  "sourceFile": "Fixture.swift",
+  "rootView": {
+    "id": "view-0001",
+    "type": "Text",
+    "arguments": { "_0": "Hello" },
+    "modifiers": [],
+    "events": [],
+    "children": []
+  },
+  "state": [],
+  "compatibility": {
+    "localCompatibilityPercent": 100,
+    "apiUsages": [
+      { "symbol": "Text", "category": "view", "status": "supported" }
+    ],
+    "requiredRemoteCapabilities": [],
+    "unsupportedSymbols": []
+  },
+  "compiledAtUtc": "1970-01-01T00:00:00+00:00"
+}

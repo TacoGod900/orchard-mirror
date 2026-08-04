@@ -1,0 +1,30 @@
+**/bin/
+**/obj/
+**/__pycache__/
+**/.build/
+**/.swiftpm/
+.vs/
+.vscode/*.log
+.idea/
+artifacts/
+TestResults/
+*.user
+*.suo
+*.cache
+*.dmp
+*.trace
+*.etl
+*.memgraph
+*.pfx
+*.snk
+.env
+.env.*
+!.env.example
+
+# Vendored upstream checkouts for Orchard Mirror. Pinned and reconstructible from
+# third_party/README.md plus third_party/patches/; not carried in the repository.
+# BonjourSdk additionally contains an Apple-supplied binary (dnssd.lib), which
+# docs/CLEAN_ROOM_AND_LEGAL.md prohibits committing.
+third_party/UxPlay/
+third_party/mDNSResponder/
+third_party/BonjourSdk/

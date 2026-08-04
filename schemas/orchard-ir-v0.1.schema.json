@@ -1,0 +1,276 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-orchard.invalid/schemas/orchard-ir-v0.1.schema.json",
+  "title": "Orchard bootstrap application IR 0.1",
+  "description": "The JSON document emitted by the current .NET subset compiler. This is not an iOS binary or the future live preview protocol.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "applicationId",
+    "displayName",
+    "sourceFile",
+    "rootView",
+    "state",
+    "compatibility",
+    "compiledAtUtc"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "0.1.0"
+    },
+    "applicationId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceFile": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rootView": {
+      "$ref": "#/$defs/viewNode"
+    },
+    "state": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/stateDefinition"
+      }
+    },
+    "compatibility": {
+      "$ref": "#/$defs/compatibilityReport"
+    },
+    "compiledAtUtc": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "$defs": {
+    "stringMap": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "sourceLocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file",
+        "line",
+        "column",
+        "length"
+      ],
+      "properties": {
+        "file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "column": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "length": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "viewModifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "arguments"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "$ref": "#/$defs/stringMap"
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        }
+      }
+    },
+    "viewEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "body"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "body": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        }
+      }
+    },
+    "viewNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "arguments",
+        "modifiers",
+        "events",
+        "children"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "arguments": {
+          "$ref": "#/$defs/stringMap"
+        },
+        "modifiers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/viewModifier"
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/viewEvent"
+          }
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/viewNode"
+          }
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        }
+      }
+    },
+    "stateDefinition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "kind",
+        "initialValue"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "text",
+            "flag",
+            "wholeNumber",
+            "decimalNumber",
+            "unknown"
+          ]
+        },
+        "initialValue": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        }
+      }
+    },
+    "apiUsage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "symbol",
+        "category",
+        "status"
+      ],
+      "properties": {
+        "symbol": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "enum": [
+            "supported",
+            "partial",
+            "remoteOnly",
+            "unsupported"
+          ]
+        },
+        "notes": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/sourceLocation"
+        }
+      }
+    },
+    "compatibilityReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "localCompatibilityPercent",
+        "apiUsages",
+        "requiredRemoteCapabilities",
+        "unsupportedSymbols"
+      ],
+      "properties": {
+        "localCompatibilityPercent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "apiUsages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/apiUsage"
+          }
+        },
+        "requiredRemoteCapabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "unsupportedSymbols": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
+

@@ -1,0 +1,476 @@
+diff --git a/lib/http_handlers.h b/lib/http_handlers.h
+index 644547f..0674e0a 100644
+--- a/lib/http_handlers.h
++++ b/lib/http_handlers.h
+@@ -64,7 +64,10 @@ http_handler_server_info(raop_conn_t *conn, http_request_t *request, http_respon
+      * 6. (unknown)
+      * 9. audio supported.
+      */
+-    plist_t features_node = plist_new_uint(0x27F); 
++    uint64_t http_features = getenv("ORCHARD_MIRROR_ONLY")
++        ? 0x280
++        : 0x27F;
++    plist_t features_node = plist_new_uint(http_features);
+     plist_dict_set_item(r_node, "features", features_node);
+ 
+     plist_t mac_address_node = plist_new_string(hw_addr);
+diff --git a/renderers/audio_renderer.c b/renderers/audio_renderer.c
+index fff708c..493ac29 100644
+--- a/renderers/audio_renderer.c
++++ b/renderers/audio_renderer.c
+@@ -145,7 +145,18 @@ void audio_renderer_init(logger_t *render_logger, const char* audiosink, const b
+         renderer_type[i] = (audio_renderer_t *)  calloc(1,sizeof(audio_renderer_t));
+         g_assert(renderer_type[i]);
+         GString *launch = g_string_new("appsrc name=audio_source ! ");
+-        g_string_append(launch, "queue ! ");
++        if (g_getenv("ORCHARD_FRAME_MAP")) {
++            /*
++             * Mirroring is interactive: cap queued AAC frames so a short
++             * receiver stall cannot turn into seconds of stale audio.
++             */
++            g_string_append(
++                launch,
++                "queue max-size-buffers=8 max-size-bytes=0 "
++                "max-size-time=100000000 leaky=downstream ! ");
++        } else {
++            g_string_append(launch, "queue ! ");
++        }
+         switch (i) {
+         case 0:    /* AAC-ELD */
+         case 2:    /* AAC-LC */
+@@ -160,7 +171,11 @@ void audio_renderer_init(logger_t *render_logger, const char* audiosink, const b
+             break;
+         }
+         g_string_append (launch, "audioconvert ! ");
+-        g_string_append (launch, "audioresample ! ");    /* wasapisink must resample from 44.1 kHz to 48 kHz */
++        if (g_getenv("ORCHARD_FRAME_MAP")) {
++            g_string_append (launch, "audioresample quality=10 ! ");
++        } else {
++            g_string_append (launch, "audioresample ! ");
++        }    /* wasapisink must resample from 44.1 kHz to 48 kHz */
+         g_string_append (launch, "volume name=volume ! ");
+ 
+         if (!audio_rtp) {
+diff --git a/renderers/video_renderer.c b/renderers/video_renderer.c
+index 6f4a5ff..f585ed1 100644
+--- a/renderers/video_renderer.c
++++ b/renderers/video_renderer.c
+@@ -22,8 +22,15 @@
+ 
+ #include <gst/gst.h>
+ #include <gst/app/gstappsrc.h>
++#include <gst/app/gstappsink.h>
++#include <gst/video/video.h>
++#include <gst/video/videooverlay.h>
+ #include "video_renderer.h"
+ 
++#ifdef _WIN32
++#include <windows.h>
++#endif
++
+ #define SECOND_IN_NSECS 1000000000UL
+ #define SECOND_IN_MICROSECS 1000000
+ #ifdef X_DISPLAY_FIX
+@@ -58,6 +65,177 @@ static int type_265 = 0;
+ static int type_hls = 0;
+ static int type_jpeg = 0;
+ 
++#ifdef _WIN32
++#define ORCHARD_FRAME_DATA_OFFSET 64
++#define ORCHARD_FRAME_DATA_CAPACITY (16 * 1024 * 1024)
++#define ORCHARD_FRAME_MAGIC 0x4843524f
++
++typedef struct orchard_frame_header_s {
++    volatile LONG state;
++    guint32 magic;
++    guint32 version;
++    volatile LONG sequence;
++    guint32 width;
++    guint32 height;
++    guint32 stride;
++    guint32 payload_length;
++} orchard_frame_header_t;
++
++static HANDLE orchard_frame_mapping = NULL;
++static unsigned char *orchard_frame_view = NULL;
++
++static gboolean orchard_open_frame_mapping(void) {
++    if (orchard_frame_view) {
++        return TRUE;
++    }
++
++    const char *mapping_name = g_getenv("ORCHARD_FRAME_MAP");
++    if (!mapping_name || !mapping_name[0]) {
++        return FALSE;
++    }
++
++    orchard_frame_mapping = CreateFileMappingA(
++        INVALID_HANDLE_VALUE,
++        NULL,
++        PAGE_READWRITE,
++        0,
++        ORCHARD_FRAME_DATA_OFFSET + ORCHARD_FRAME_DATA_CAPACITY,
++        mapping_name);
++    if (!orchard_frame_mapping) {
++        logger_log(
++            logger,
++            LOGGER_ERR,
++            "Could not open Orchard frame mapping (error %lu)",
++            GetLastError());
++        return FALSE;
++    }
++
++    orchard_frame_view = (unsigned char *) MapViewOfFile(
++        orchard_frame_mapping,
++        FILE_MAP_ALL_ACCESS,
++        0,
++        0,
++        ORCHARD_FRAME_DATA_OFFSET + ORCHARD_FRAME_DATA_CAPACITY);
++    if (!orchard_frame_view) {
++        logger_log(
++            logger,
++            LOGGER_ERR,
++            "Could not map Orchard frame memory (error %lu)",
++            GetLastError());
++        CloseHandle(orchard_frame_mapping);
++        orchard_frame_mapping = NULL;
++        return FALSE;
++    }
++
++    orchard_frame_header_t *header =
++        (orchard_frame_header_t *) orchard_frame_view;
++    header->state = 0;
++    header->magic = ORCHARD_FRAME_MAGIC;
++    header->version = 1;
++    header->sequence = 0;
++    MemoryBarrier();
++    logger_log(logger, LOGGER_INFO, "Orchard shared-frame transport ready");
++    return TRUE;
++}
++
++static GstFlowReturn orchard_frame_new_sample(
++    GstAppSink *app_sink,
++    gpointer user_data) {
++    (void) user_data;
++
++    GstSample *sample = gst_app_sink_pull_sample(app_sink);
++    if (!sample) {
++        return GST_FLOW_ERROR;
++    }
++
++    if (!orchard_open_frame_mapping()) {
++        gst_sample_unref(sample);
++        return GST_FLOW_OK;
++    }
++
++    GstCaps *caps = gst_sample_get_caps(sample);
++    GstBuffer *buffer = gst_sample_get_buffer(sample);
++    GstVideoInfo video_info;
++    GstMapInfo map_info;
++    if (!caps ||
++        !buffer ||
++        !gst_video_info_from_caps(&video_info, caps) ||
++        !gst_buffer_map(buffer, &map_info, GST_MAP_READ)) {
++        gst_sample_unref(sample);
++        return GST_FLOW_OK;
++    }
++
++    guint32 width = GST_VIDEO_INFO_WIDTH(&video_info);
++    guint32 height = GST_VIDEO_INFO_HEIGHT(&video_info);
++    gint source_stride = GST_VIDEO_INFO_PLANE_STRIDE(&video_info, 0);
++    if (source_stride < 0) {
++        source_stride = -source_stride;
++    }
++
++    guint64 expected_length = (guint64) source_stride * height;
++    guint32 payload_length = (guint32) MIN(
++        MIN(expected_length, map_info.size),
++        ORCHARD_FRAME_DATA_CAPACITY);
++    if (width > 0 &&
++        height > 0 &&
++        source_stride >= (gint) width * 4 &&
++        expected_length <= ORCHARD_FRAME_DATA_CAPACITY &&
++        payload_length == expected_length) {
++        orchard_frame_header_t *header =
++            (orchard_frame_header_t *) orchard_frame_view;
++        InterlockedExchange(&header->state, 0);
++        header->width = width;
++        header->height = height;
++        header->stride = (guint32) source_stride;
++        header->payload_length = payload_length;
++        memcpy(
++            orchard_frame_view + ORCHARD_FRAME_DATA_OFFSET,
++            map_info.data,
++            payload_length);
++        MemoryBarrier();
++        InterlockedIncrement(&header->sequence);
++        InterlockedExchange(&header->state, 1);
++    }
++
++    gst_buffer_unmap(buffer, &map_info);
++    gst_sample_unref(sample);
++    return GST_FLOW_OK;
++}
++
++static GstBusSyncReply orchard_video_overlay_sync_handler(
++    GstBus *bus,
++    GstMessage *message,
++    gpointer user_data) {
++    (void) bus;
++    (void) user_data;
++
++    if (!gst_is_video_overlay_prepare_window_handle_message(message)) {
++        return GST_BUS_PASS;
++    }
++
++    const char *orchard_video_hwnd = g_getenv("ORCHARD_VIDEO_HWND");
++    if (!orchard_video_hwnd || !orchard_video_hwnd[0]) {
++        return GST_BUS_PASS;
++    }
++
++    guint64 parsed_hwnd = g_ascii_strtoull(orchard_video_hwnd, NULL, 10);
++    if (parsed_hwnd == 0 || !GST_IS_VIDEO_OVERLAY(GST_MESSAGE_SRC(message))) {
++        return GST_BUS_PASS;
++    }
++
++    gst_video_overlay_set_window_handle(
++        GST_VIDEO_OVERLAY(GST_MESSAGE_SRC(message)),
++        (guintptr) parsed_hwnd);
++    logger_log(
++        logger,
++        LOGGER_INFO,
++        "Prepared Direct3D video surface for Orchard HWND %s",
++        orchard_video_hwnd);
++    gst_message_unref(message);
++    return GST_BUS_DROP;
++}
++#endif
++
+ typedef enum {
+   //GST_PLAY_FLAG_VIDEO         = (1 << 0),
+   //GST_PLAY_FLAG_AUDIO         = (1 << 1),
+@@ -358,6 +536,12 @@ void video_renderer_init(logger_t *render_logger, const char *server_name, video
+                 g_assert(0);
+             }
+             GString *launch = g_string_new("appsrc name=video_source ! ");
++#ifdef _WIN32
++            bool orchard_frame_output =
++                !jpeg_pipeline &&
++                g_getenv("ORCHARD_FRAME_MAP") &&
++                g_getenv("ORCHARD_FRAME_MAP")[0];
++#endif
+             if (jpeg_pipeline) {
+                 g_string_append(launch, "jpegdec ");
+             } else {
+@@ -366,6 +550,20 @@ void video_renderer_init(logger_t *render_logger, const char *server_name, video
+                 g_string_append(launch, " ! ");
+                 if (!rtp) {
+                     g_string_append(launch, decoder);
++#ifdef _WIN32
++                    if (orchard_frame_output) {
++                        /*
++                         * Never let scaling, CPU readback or the UI make the
++                         * decoder wait behind stale frames. Dropping decoded
++                         * frames is safe and keeps interaction latency bounded.
++                         */
++                        g_string_append(
++                            launch,
++                            " ! queue max-size-buffers=1 "
++                            "max-size-bytes=0 max-size-time=0 "
++                            "leaky=downstream");
++                    }
++#endif
+                 } else {
+                     g_string_append(launch, "rtph264pay ");
+                     g_string_append(launch, rtp_pipeline);
+@@ -374,12 +572,52 @@ void video_renderer_init(logger_t *render_logger, const char *server_name, video
+             if (!rtp || jpeg_pipeline) {
+                 g_string_append(launch, " ! ");
+                 append_videoflip(launch, &videoflip[0], &videoflip[1]);
++#ifdef _WIN32
++                if (orchard_frame_output) {
++                    /*
++                     * Keep the iPhone virtual display at native resolution,
++                     * but perform the display-size conversion on Direct3D11
++                     * before downloading a small BGRA frame to system memory.
++                     * 390x844 exactly matches Orchard's default viewport.
++                     */
++                    if (strstr(decoder, "d3d11")) {
++                        g_string_append(
++                            launch,
++                            "d3d11convert add-borders=false ! "
++                            "video/x-raw(memory:D3D11Memory),format=BGRA,"
++                            "width=390,height=844,pixel-aspect-ratio=1/1 ! "
++                            "d3d11download ! "
++                            "video/x-raw,format=BGRA,"
++                            "width=390,height=844,pixel-aspect-ratio=1/1 ! ");
++                    } else {
++                        g_string_append(
++                            launch,
++                            "videoscale n-threads=4 ! ");
++                        g_string_append(launch, converter);
++                        g_string_append(
++                            launch,
++                            " ! video/x-raw,format=BGRA,"
++                            "width=390,height=844,pixel-aspect-ratio=1/1 ! ");
++                    }
++                } else {
++#endif
+                 g_string_append(launch, converter);
+                 g_string_append(launch, " ! ");
+                 g_string_append(launch, "videoscale ! ");
++#ifdef _WIN32
++                }
++#endif
+                 if (jpeg_pipeline) {
+                     g_string_append(launch, " imagefreeze allow-replace=TRUE ! textoverlay name=metadata_overlay ! ");
+                 }
++#ifdef _WIN32
++                if (orchard_frame_output) {
++                    g_string_append(
++                        launch,
++                        "appsink name=orchard_frame_sink "
++                        "emit-signals=true max-buffers=1 drop=true sync=false");
++                } else {
++#endif
+                 g_string_append(launch, videosink);
+                 g_string_append(launch, " name=");
+                 g_string_append(launch, videosink);
+@@ -393,6 +631,9 @@ void video_renderer_init(logger_t *render_logger, const char *server_name, video
+                     g_string_append(launch, " sync=false");
+                     sync = false;
+                 }
++#ifdef _WIN32
++                }
++#endif
+             }
+             if (!strcmp(renderer_type[i]->codec, h264)) {
+                 char *pos = launch->str;
+@@ -421,12 +662,68 @@ void video_renderer_init(logger_t *render_logger, const char *server_name, video
+                 g_clear_error (&error);
+             }
+             g_assert (renderer_type[i]->pipeline);
++
++#ifdef _WIN32
++            /*
++             * Orchard hosts UxPlay as a separate GPL process. When the shell
++             * supplies its video-panel HWND, render directly into that panel
++             * instead of asking GStreamer to create an independent window.
++             */
++            const char *orchard_video_hwnd = g_getenv("ORCHARD_VIDEO_HWND");
++            if (!orchard_frame_output &&
++                orchard_video_hwnd &&
++                orchard_video_hwnd[0] &&
++                !jpeg_pipeline) {
++                GString *sink_name = g_string_new(videosink);
++                g_string_append(sink_name, "_");
++                g_string_append(sink_name, renderer_type[i]->codec);
++                GstElement *orchard_video_sink = gst_bin_get_by_name(
++                    GST_BIN(renderer_type[i]->pipeline),
++                    sink_name->str);
++                if (orchard_video_sink &&
++                    GST_IS_VIDEO_OVERLAY(orchard_video_sink)) {
++                    guint64 parsed_hwnd = g_ascii_strtoull(
++                        orchard_video_hwnd,
++                        NULL,
++                        10);
++                    if (parsed_hwnd != 0) {
++                        gst_video_overlay_set_window_handle(
++                            GST_VIDEO_OVERLAY(orchard_video_sink),
++                            (guintptr) parsed_hwnd);
++                        logger_log(
++                            logger,
++                            LOGGER_INFO,
++                            "Rendering video into Orchard HWND %s",
++                            orchard_video_hwnd);
++                    }
++                }
++                if (orchard_video_sink) {
++                    gst_object_unref(orchard_video_sink);
++                }
++                g_string_free(sink_name, TRUE);
++            }
++#endif
++
+             GstClock *clock = gst_system_clock_obtain();
+             g_object_set(clock, "clock-type", GST_CLOCK_TYPE_REALTIME, NULL);
+             gst_pipeline_use_clock(GST_PIPELINE_CAST(renderer_type[i]->pipeline), clock);
+             renderer_type[i]->appsrc = gst_bin_get_by_name (GST_BIN (renderer_type[i]->pipeline), "video_source");
+             g_assert(renderer_type[i]->appsrc);
+             g_object_set(renderer_type[i]->appsrc, "caps", caps, "stream-type", 0, "is-live", TRUE, "format", GST_FORMAT_TIME, NULL);
++#ifdef _WIN32
++            if (orchard_frame_output) {
++                GstElement *orchard_frame_sink = gst_bin_get_by_name(
++                    GST_BIN(renderer_type[i]->pipeline),
++                    "orchard_frame_sink");
++                g_assert(orchard_frame_sink);
++                g_signal_connect(
++                    orchard_frame_sink,
++                    "new-sample",
++                    G_CALLBACK(orchard_frame_new_sample),
++                    NULL);
++                gst_object_unref(orchard_frame_sink);
++            }
++#endif
+             g_string_free(launch, TRUE);
+             gst_caps_unref(caps);
+             gst_object_unref(clock);
+@@ -465,6 +762,15 @@ void video_renderer_init(logger_t *render_logger, const char *server_name, video
+         }
+ #endif
+         renderer_type[i]->bus = gst_element_get_bus(renderer_type[i]->pipeline);	
++#ifdef _WIN32
++        if (g_getenv("ORCHARD_VIDEO_HWND")) {
++            gst_bus_set_sync_handler(
++                renderer_type[i]->bus,
++                orchard_video_overlay_sync_handler,
++                NULL,
++                NULL);
++        }
++#endif
+         gst_element_set_state (renderer_type[i]->pipeline, GST_STATE_READY);
+         GstState state;
+         GstStateChangeReturn ret = gst_element_get_state (renderer_type[i]->pipeline, &state, NULL, 100 * GST_MSECOND);
+diff --git a/uxplay.cpp b/uxplay.cpp
+index 9303c98..8adda9a 100644
+--- a/uxplay.cpp
++++ b/uxplay.cpp
+@@ -2075,6 +2075,26 @@ static int start_dnssd(std::vector<char> hw_addr, std::string name) {
+ 
+     /* bit 27 of Features determines whether the AirPlay2 client-pairing protocol will be used (1) or not (0) */
+     dnssd_set_airplay_features(dnssd, 27, (int) setup_legacy_pairing);
++
++    /*
++     * Orchard Mirror is a screen receiver, not an Apple TV media target.
++     * Do not advertise photo, remote-video, FairPlay-video, slideshow or
++     * HLS playback. Some iOS apps otherwise replace their mirrored UI with
++     * a video-only external-playback surface.
++     */
++    if (getenv("ORCHARD_MIRROR_ONLY")) {
++        const int media_feature_bits[] = {0, 1, 2, 3, 4, 5, 6, 13};
++        for (size_t i = 0;
++             i < sizeof(media_feature_bits) / sizeof(media_feature_bits[0]);
++             i++) {
++            dnssd_set_airplay_features(
++                dnssd,
++                media_feature_bits[i],
++                0);
++        }
++        dnssd_set_airplay_features(dnssd, 7, 1);
++        dnssd_set_airplay_features(dnssd, 9, 1);
++    }
+     return 0;
+ }
+ 
+@@ -2872,6 +2892,11 @@ int main (int argc, char *argv[]) {
+     std::string config_file = "";
+ 
+ #ifdef _WIN32
++    if (getenv("ORCHARD_VIDEO_HWND")) {
++        setvbuf(stdout, NULL, _IONBF, 0);
++        setvbuf(stderr, NULL, _IONBF, 0);
++    }
++
+     if (!SetConsoleCtrlHandler(CtrlHandler, TRUE)) {
+         LOGE("Could not set control handler");
+         exit(1);

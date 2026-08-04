@@ -1,0 +1,967 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>Orchard.Mirror</name>
+    </assembly>
+    <members>
+        <member name="T:Orchard.Mirror.Windows.ControlStripWindow">
+            <summary>
+            The window's own controls: disconnect, pin, minimise and close, plus what is connected.
+            </summary>
+            <remarks>
+            <para>Before this there was no visible way out. The mirror window is borderless, permanently
+            always-on-top and has no title bar, so the only disconnect was a Shift-Escape shortcut described
+            on a screen you could not reach without already knowing the shortcut, and the only way to move
+            the window was an invisible 30x30 pixel square in a corner that the rounded region mostly cut
+            away.</para>
+            <para>It is an owned top-level window rather than a control inside the mirror. DWM composes the
+            video's flip-model swap chain for its own HWND independently of z-order within the parent — the
+            reason the setup overlay is a child of the form and not of the video host — so a sibling control
+            here would be betting on the same behaviour at a different depth, and would additionally need
+            per-pixel alpha to fade. An owned window's <see cref="P:System.Windows.Forms.Form.Opacity"/> is composited by DWM, so
+            the fade costs nothing and never touches the present path.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.ControlStripWindow.Bar">
+            <summary>
+            Opaque on purpose. A Form's BackColor cannot carry an alpha channel — assigning one throws
+            "Control does not support transparent background colors" — so the strip's translucency comes
+            from <see cref="P:System.Windows.Forms.Form.Opacity"/>, which DWM composites, and its shape from a region.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.ControlStripWindow.Control">
+            <summary>What each button does. Order is left to right after the label.</summary>
+        </member>
+        <member name="E:Orchard.Mirror.Windows.ControlStripWindow.DisconnectRequested">
+            <summary>Raised when the owner asks to stop mirroring but keep the window.</summary>
+        </member>
+        <member name="E:Orchard.Mirror.Windows.ControlStripWindow.PinChanged">
+            <summary>Raised when the owner turns always-on-top off or back on.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.ControlStripWindow.DeviceSummary">
+            <summary>What is connected, shown on the left of the strip.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.ControlStripWindow.Pinned">
+            <summary>Whether the mirror window is pinned above everything else.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.ControlStripWindow.ShowWithoutActivation">
+            <summary>Never steal focus from the phone by appearing.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ControlStripWindow.Attach">
+            <summary>Follow the mirror window and begin watching for the reveal gesture.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ControlStripWindow.Reposition">
+            <summary>Sit across the top of the mirror window, inset so the rounded corners stay clear.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ControlStripWindow.Step">
+            <summary>Poll the pointer, ask the policy, and ease towards whatever it said.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ControlStripWindow.LabelFor(Orchard.Mirror.Windows.ControlStripWindow.Control)">
+            <summary>
+            What pointing at a control promises it will do. The pin reads as its next action rather than
+            its current state, because "Keep on top" while it is already on top is a question, not a
+            label — the glyph carries the state, the words carry the consequence.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.CoreDeviceInputController">
+            <summary>Coalesces high-rate Windows pointer motion into ordered CoreDevice touchscreen samples.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.MirrorSessionUpdate">
+            <summary>One thing the session has to report.</summary>
+            <remarks>
+            This used to be a message plus five parallel booleans, two of which (<c>Asleep</c>/<c>Awake</c>)
+            encoded one tri-state and could both be false, both be set, or disagree with the flag the form
+            kept alongside them. A <see cref="T:Orchard.Mirror.Shell.NoticeKind"/> says the same things without any of those
+            combinations existing, and it can be routed — deciding how loudly to say something by inspecting
+            its wording is what left errors reading "All set".
+            </remarks>
+            <param name="Notice">What happened.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorSessionUpdate.#ctor(Orchard.Mirror.Shell.MirrorNotice)">
+            <summary>One thing the session has to report.</summary>
+            <remarks>
+            This used to be a message plus five parallel booleans, two of which (<c>Asleep</c>/<c>Awake</c>)
+            encoded one tri-state and could both be false, both be set, or disagree with the flag the form
+            kept alongside them. A <see cref="T:Orchard.Mirror.Shell.NoticeKind"/> says the same things without any of those
+            combinations existing, and it can be routed — deciding how loudly to say something by inspecting
+            its wording is what left errors reading "All set".
+            </remarks>
+            <param name="Notice">What happened.</param>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.MirrorSessionUpdate.Notice">
+            <summary>What happened.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.CoreDeviceMirrorSession">
+            <summary>Runs the low-latency CoreDevice RTP, DXVA decode, and DXGI presentation pipeline.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.CoreDeviceMirrorSession.#ctor(Orchard.Mirror.Agent.Windows.CoreDeviceAgentClient,System.IntPtr,System.Action{Orchard.Mirror.Windows.MirrorSessionUpdate},System.Int32,System.Int32,System.Int32,System.Int32)">
+            <param name="agent">The CoreDevice supervisor owning the phone session.</param>
+            <param name="window">The HWND that DXGI presents the decoded frames into.</param>
+            <param name="update">Receives status and reconnect requests on a background thread.</param>
+            <param name="presentationWidth">Initial client width of the presentation window.</param>
+            <param name="presentationHeight">Initial client height of the presentation window.</param>
+            <param name="displayWidth">
+            The iPhone's reported screen width, or 0 when unknown. CoreDevice pads the encoded picture
+            beyond the screen, so this is what distinguishes real pixels from black padding.
+            </param>
+            <param name="displayHeight">The iPhone's reported screen height, or 0 when unknown.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.CoreDeviceMirrorSession.RequestPresentationSize(System.Int32,System.Int32)">
+            <summary>
+            Records the window size the next presented frame should fill. The decode thread owns the
+            presenter, so the swap chain is rebuilt there rather than from the UI thread.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.CoreDeviceMirrorSession.StopAsync(System.TimeSpan)">
+            <summary>
+            Stop the session, giving the phone <paramref name="stopVideoBudget"/> to acknowledge that
+            its paired media session is over.
+            </summary>
+            <remarks>
+            The budget is a parameter because it is genuinely a different question on different paths.
+            A pulled cable cannot hear the stop and waiting on it is what froze the window for seconds;
+            a deliberate disconnect can, and abandoning it there is what leaves the phone's media daemon
+            holding a session nothing will ever end.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.CoreDeviceMirrorSession.WakeAsync(System.Threading.CancellationToken)">
+            <summary>
+            Wake the phone by tapping Home through Indigo HID.
+            </summary>
+            <remarks>
+            The touchscreen is off while the phone sleeps, so a tap in the window cannot reach it and
+            some hardware button has to stand in for it. The power button is the obvious choice and does
+            not work: tried against the device, the screen stayed dark until it was woken by hand. Home
+            does wake it, which matches the earlier finding that Home is what brings this phone back
+            from a locked screen.
+            </remarks>
+            <param name="cancellationToken">Abandons the press; the phone may still have acted.</param>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.CoreDeviceMirrorSession.SampleBrightness(Orchard.Mirror.Video.Windows.D3D11HevcDecoder,System.Int32)">
+            <summary>
+            Track how long the phone's picture has been dark, sampling a few times a second.
+            </summary>
+            <remarks>
+            The phone keeps streaming while its display is off, so silence never arrives and the picture
+            itself is the only evidence. Sampling every frame would put a GPU readback on the decode
+            path for a question that changes on the scale of seconds, so it runs at 4 Hz.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.CoreDeviceMirrorSession.SilenceDeviceAsync(System.Threading.CancellationToken)">
+            <summary>Walk the phone's volume down to silence, best effort.</summary>
+            <remarks>
+            Failing to mute is not worth losing a session over: the user gets an echo, which they can
+            fix with the phone's own buttons, rather than no mirror at all.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.CoreDeviceMirrorSession.IsTunnelAliveAsync(System.Threading.CancellationToken)">
+            <summary>Is the CoreDevice tunnel still usable, whatever the stream is doing?</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.MirrorForm.phoneAspectRatio">
+            <summary>
+            Width divided by height of the mirrored screen. Seeded with the iPhone 16e panel and
+            replaced by the connected phone's reported resolution so nothing is ever stretched.
+            </summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.MirrorForm.appliedRegions">
+            <summary>
+            The shape each layer was last given, so an unchanged one is not handed the same region again.
+            </summary>
+            <remarks>
+            Three entries, living exactly as long as the window that owns the controls in it.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.MirrorForm.lifecycleChain">
+            <summary>
+            Serializes the lifecycle work the machine asks for, so a teardown always finishes before the
+            attempt that follows it starts. The commands themselves are ordered; without this the delay
+            before a retry could be shorter than the teardown it is meant to follow.
+            </summary>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.MirrorForm.PhoneAsleep">
+            <summary>The phone's screen is off, so a click cannot reach it as a touch.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.MirrorForm.Picture">
+            <summary>
+            What is on the mirror surface right now, which decides how loudly anything may be said.
+            </summary>
+            <remarks>
+            Derived rather than stored, so the held frame cannot outlive its own grace period through a
+            path that forgot to clear a flag. The two fields it reads are each written from one place.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.MirrorForm.IsShuttingDown">
+            <summary>The window is going away; nothing may start anything new.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.RunGuidedSetupAsync">
+            <summary>
+            Walk the phone through setup: wait for a cable, turn on Developer Mode, ride out the
+            restart, then connect.
+            </summary>
+            <remarks>
+            <para>The Developer Mode step is done through AMFI, a lockdown service reachable over plain
+            USB. That matters: it is the only way round a genuine circularity. Driving Settings by hand
+            would need the screen and the touchscreen, and both of those are developer services, so
+            neither exists until the thing being enabled is already on.</para>
+            <para>USB only for the same reason. AMFI is reached over usbmux, and a phone that has never
+            had Developer Mode turned on has no CoreDevice tunnel to reach it any other way.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.WaitForCableAsync(Orchard.Mirror.Agent.Windows.CoreDeviceAgentClient,System.Threading.CancellationToken)">
+            <summary>Poll until an iPhone is on the cable, reporting what it is when one appears.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.MirrorForm.AttemptBudget">
+            <summary>How long one whole connection attempt may take before it is abandoned.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.ConnectMountingIfNeededAsync(Orchard.Mirror.Agent.Windows.CoreDeviceAgentClient,System.Threading.CancellationToken)">
+            <summary>
+            Open the CoreDevice tunnel, mounting the Developer Disk Image only if the phone turns out
+            to need it.
+            </summary>
+            <remarks>
+            The image is per-boot, so it is usually already mounted and the USB probe is pure latency —
+            well over a second on every attempt, including the reconnects that follow an unplugged
+            cable. Connecting first makes the common path fast and still recovers after a reboot,
+            because a phone without the image reports its CoreDevice services as unavailable.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.ApplyPhoneAspect(System.Int32,System.Int32)">
+            <summary>
+            Match the window to the connected phone's panel so the picture is neither letterboxed nor
+            stretched. Grows or shrinks height around the existing width and keeps the window on screen.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.Show(Orchard.Mirror.Shell.MirrorNotice)">
+            <summary>
+            Route one notice and show whatever comes back.
+            </summary>
+            <remarks>
+            Every status in this window goes through here. The alternative — which is what this replaces
+            — was fifteen call sites each assigning a title, a detail and a colour field directly, none
+            of which agreed about when the panel should be visible, and one of which (the colour) was
+            never read at all.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.WakePhoneAsync">
+            <summary>
+            Press the phone's power button, once, however many times the user clicks.
+            </summary>
+            <remarks>
+            A sleeping phone invites repeated clicking. The guard drops clicks while a press is
+            outstanding, and the asleep state clears only when RTP resumes, so a burst of clicks is one
+            press rather than a queue of them arriving after the phone is already back.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.PasteFromPcAsync">
+            <summary>
+            Type the PC's clipboard into the phone's focused field.
+            </summary>
+            <remarks>
+            <para>The honest half of a shared clipboard. iOS exposes no pasteboard to a host, so reading
+            what was copied <em>on</em> the phone would need an app on the phone — but sending the PC's
+            clipboard the other way is only typing, and the phone already accepts typing. So this reads
+            the Windows clipboard, reduces it to what the virtual keyboard can produce, and sends it as
+            keystrokes.</para>
+            <para>The reduction is not cosmetic: the agent's typing throws on the first character it
+            cannot map, after typing everything before it, so pasting raw clipboard text with a smart
+            quote in it would land half a line and then fail. <see cref="T:Orchard.Mirror.Shell.ClipboardText"/> settles that
+            before a key is sent, and reports what it had to drop so the confirmation can be truthful.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.PasteHeadline(Orchard.Mirror.Shell.ClipboardPaste)">
+            <summary>Say what happened to a paste, honestly, in one line.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.Disconnect">
+            <summary>
+            Put the phone down: end the session and stop trying to get it back.
+            </summary>
+            <remarks>
+            Distinct from losing the connection, which retries. This is someone standing up to leave, so
+            a retry already in flight must not quietly pull the phone back a second later — which is
+            exactly what used to happen, because the loop checked a different flag from the one this set.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.Dispatch(Orchard.Mirror.Shell.ConnectionEvent)">
+            <summary>Feed one thing that happened to the machine, and carry out what it asks for.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.Chain(System.Func{System.Threading.Tasks.Task})">
+            <summary>Queue lifecycle work behind whatever is already running.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.MarkPictureLive">
+            <summary>Frames are flowing. Nothing is being held and nothing is owed an explanation.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.HoldPicture(Orchard.Mirror.Shell.MirrorNotice)">
+            <summary>Keep the stopped stream's last frame on screen, and start its grace period.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.ReleasePicture">
+            <summary>Stop claiming there is a picture. The surface is free for whatever comes next.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.ScheduleHeldFrameExpiry">
+            <summary>
+            Come back when the held frame stops being worth believing.
+            </summary>
+            <remarks>
+            A timer rather than an evaluation at the next status, because the retry ladder goes quiet:
+            its later waits are four seconds long, so an owner could sit in front of a frozen picture
+            well past the grace with nothing arriving to notice that it had passed.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.ExpireHeldFrame">
+            <summary>
+            The grace has run out. Say what is happening, on the whole surface this time.
+            </summary>
+            <remarks>
+            The notice re-shown is the one that started the hold, so the owner is told the same thing
+            they would have been told immediately before -- only now with a picture behind it that has
+            stopped being worth protecting, which is what promotes it from a note to the surface.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.ShutdownAsync">
+            <summary>
+            Let go of the phone completely, bounded so a wedged agent cannot trap the window.
+            </summary>
+            <remarks>
+            The bound is the point. Waiting properly for the teardown is what this phase is for, but a
+            close that can never finish is a worse bug than the one being fixed, so the agent is killed
+            and the window closed anyway if the budget runs out.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.TearDownCoreDeviceAsync(Orchard.Mirror.Shell.TeardownReason)">
+            <summary>
+            Release the phone, spending as long on it as the reason deserves.
+            </summary>
+            <remarks>
+            Every path used to share one budget, and that budget was chosen for a pulled cable — the one
+            case where the phone genuinely cannot hear the goodbye. Applied to a deliberate disconnect
+            or a window close it abandoned the stop-video that ends the phone's media session, which is
+            the message that must not be lost.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.BoundedAsync(System.Threading.Tasks.Task,System.TimeSpan)">
+            <summary>
+            Await a teardown step, giving up once it is clearly not going to finish. Nothing here is
+            worth a frozen window: the underlying process is terminated either way.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.CornerRadius(System.Int32)">
+            <summary>
+            The single corner radius shared by the window and every layer inside it. One value keeps the
+            arcs coincident; two different radii are what produced the visible corner wedges.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.ShowTransientStatus(Orchard.Mirror.Shell.MirrorNotice)">
+            <summary>Say something short, wherever the router judges it belongs.</summary>
+            <remarks>
+            This used to drop the notice outright whenever the overlay was not already covering the
+            picture, because there was nowhere for a note to go over a running mirror. That was the
+            right call while the toast surface did not exist and the only alternative was covering live
+            video to announce "Connected". Now that <see cref="T:Orchard.Mirror.Windows.ToastWindow"/> draws one, the decision
+            belongs to <see cref="T:Orchard.Mirror.Shell.StatusRouter"/> alone — which already declines to interrupt for the
+            routine cases this guard was standing in for, and does it per notice rather than per
+            surface.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.MirrorForm.SetRoundedRegion(System.Windows.Forms.Control,System.Int32)">
+            <summary>
+            Give one layer the shared corner radius, but only when its shape has actually changed.
+            </summary>
+            <remarks>
+            <para>The guard is the whole of this. <c>Resize</c> fires for every <c>WM_SIZE</c>, and a
+            window being dragged by its edge produces those continuously, so each of the three layers
+            was building a <see cref="T:System.Drawing.Drawing2D.GraphicsPath"/>, converting it to a region and handing it to a
+            control on every mouse message of a resize drag. Setting a region re-lays the window's shape
+            and forces a non-client repaint, and one of the three layers here is the HWND hosting the
+            flip-model swap chain — so the cost landed next to the present path, which is the one place
+            in this window where a stall is visible as a dropped frame rather than as a flicker.</para>
+            <para>The same reasoning is recorded on <see cref="M:Orchard.Mirror.Windows.ControlStripWindow.Reposition"/>, which
+            already skips its own rebuild on a move. This is that fix applied to the layer where it
+            matters most.</para>
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.NativeVideoSurface">
+            <summary>
+            A paint-free native child HWND dedicated to DXGI. Keeping the swap chain off the WinForms
+            panel prevents GDI double-buffer paints from racing DWM's flip-model presentation.
+            </summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.NativeMethods">
+            <summary>
+            The Win32 surface Orchard Mirror actually uses: window hit-testing and sizing, the drag handoff,
+            and the DWM attributes that give the window its borderless rounded frame.
+            </summary>
+            <remarks>
+            This used to carry a second set of imports — <c>EnumWindows</c>, <c>GetWindowThreadProcessId</c>,
+            <c>SetParent</c>, <c>GetWindowLongPtr</c>/<c>SetWindowLongPtr</c>, <c>MoveWindow</c> and the
+            <c>WS_*</c> style bits — which together are one recipe: find another process's window by
+            enumerating them all, strip its caption and frame, and reparent it into a panel. That was how the
+            prototype hosted a UxPlay receiver, before the phone's own HEVC stream was decoded in-process.
+            None of it had been called in a long time, and none of it describes anything this app does now.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.NativeMethods.DwmWindowAttributeBorderColor">
+            <summary>DWMWA_BORDER_COLOR. Windows 11 paints a light frame line here by default.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.NativeMethods.DwmColorNone">
+            <summary>DWMWA_COLOR_NONE: suppress the frame line entirely.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.NativeMethods.IsTopMost(System.IntPtr)">
+            <summary>Whether the window is currently in the always-on-top band, read from Windows.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.NativeMethods.ReassertTopMost(System.IntPtr)">
+            <summary>Put the window back in the always-on-top band without moving, sizing or focusing it.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.OnboardingState">
+            <summary>Remembers whether the first-run walkthrough has been completed on this machine.</summary>
+            <remarks>
+            A file under the user's local application data rather than the registry, so that clearing it —
+            which is the only way to see the walkthrough again — is something a person can do by deleting
+            something they can find.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.OnboardingState.CurrentVersion">
+            <summary>
+            Bumping this shows the walkthrough again to everyone.
+            </summary>
+            <remarks>
+            Worth doing only when the setup steps themselves change. The walkthrough is instructions for
+            putting the phone in the right state, so replaying it after an unrelated update is noise.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingState.IsComplete">
+            <summary>Has this machine already been walked through setup?</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingState.MarkComplete">
+            <summary>Record that setup was completed, best effort.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.OnboardingView">
+            <summary>
+            The full-surface setup and connection screen that stands in front of the mirrored phone.
+            </summary>
+            <remarks>
+            <para>This replaces the floating status pill. A pill had to sit on top of the picture forever,
+            because there was nowhere else for "connecting", "retrying" or "asleep" to live; giving those
+            states the whole surface means the mirror itself can be nothing but the phone.</para>
+            <para>Everything is drawn, and drawn flat. The backdrop used to be four saturated lobes of
+            coloured light drifting behind a sheet of glass, with the primary button rendered as a lens that
+            magnified them; the material is now a single near-black with a barely-there falloff, and the
+            button is a solid shape. That is a decision about what the product should look like rather than
+            a performance one, but it happens to remove the per-frame bitmap composite as well.</para>
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.OnboardingView.Glyph">
+            <summary>The mark drawn in the medallion above each page's title.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.OnboardingView.WalkthroughPage">
+            <summary>
+            The two first-run pages, which are the only content this view still owns.
+            </summary>
+            <remarks>
+            Everything else it draws now arrives from <see cref="T:Orchard.Mirror.Shell.StatusRouter"/> as a
+            <see cref="T:Orchard.Mirror.Shell.StatusPresentation"/>. There used to be a five-value phase enum here that doubled
+            as connection state, and it latched: once a frame had arrived it stuck on its Ready value
+            forever, so every later message was drawn under that value's hardcoded "All set" headline.
+            These two pages are genuinely static copy shown before any connection exists, so they are
+            the one thing that does not need routing.
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.OnboardingView.WalkthroughPage.Welcome">
+            <summary>The opening page, with a way past it for anyone who has done this before.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.OnboardingView.WalkthroughPage.WaitingForCable">
+            <summary>Waiting for a cable, because AMFI is reachable over USB and nothing else.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.OnboardingView.KickerInk">
+            <summary>The kicker's ink.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.OnboardingView.MotionInterval">
+            <summary>Frame interval while something is genuinely moving.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.OnboardingView.SlideDurationMilliseconds">
+            <summary>
+            How long a page slide takes, and so how quickly a replacement counts as rushed.
+            </summary>
+            <remarks>
+            Derived from the animation rather than picked: the slide advances 0.05 of its progress per
+            frame at <see cref="F:Orchard.Mirror.Windows.OnboardingView.MotionInterval"/>, which is twenty frames.
+            </remarks>
+        </member>
+        <member name="E:Orchard.Mirror.Windows.OnboardingView.SetupCompleted">
+            <summary>Raised when the walkthrough is finished and connecting should begin.</summary>
+        </member>
+        <member name="E:Orchard.Mirror.Windows.OnboardingView.RetryRequested">
+            <summary>Raised when the user asks to retry a failed connection.</summary>
+        </member>
+        <member name="E:Orchard.Mirror.Windows.OnboardingView.SetupSkipped">
+            <summary>Raised when the owner says they have done this before and wants to skip ahead.</summary>
+        </member>
+        <member name="E:Orchard.Mirror.Windows.OnboardingView.WakeRequested">
+            <summary>Raised when the owner asks to wake a sleeping phone.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Present(Orchard.Mirror.Shell.StatusPresentation)">
+            <summary>
+            Show one routed status.
+            </summary>
+            <remarks>
+            <para>The important half of this method is what it does <b>not</b> do. Only a
+            <see cref="F:Orchard.Mirror.Shell.StatusSurface.Full"/> presentation is allowed to make this control visible;
+            anything the router judged routine leaves the picture alone. The method it replaces made
+            itself visible and brought itself to the front unconditionally, so a phone locking — which it
+            keeps streaming through — dropped a full sheet of glass over live video.</para>
+            <para>It also stops resetting the animation when nothing has changed. The old one cleared the
+            reveal progress on every call, so a status arriving mid-reveal snapped the panel back to the
+            top of the window with a visible jump.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.RevealMirror">
+            <summary>Slide out of the way, revealing the live phone underneath.</summary>
+            <remarks>
+            The picture is already being presented behind this control, so this uncovers a running mirror
+            rather than fading into an empty panel. Called on every frame update, so it is idempotent.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.ShowWalkthrough(Orchard.Mirror.Windows.OnboardingView.WalkthroughPage)">
+            <summary>Show one of the two first-run pages.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.WelcomePage">
+            <summary>
+            The opening page. Static copy, shown before any connection exists.
+            </summary>
+            <remarks>
+            <para>Three things changed here, and none of them is decoration.</para>
+            <para>The kicker was the word "ORCHARD" set above the headline. A tracked-out brand name over
+            a headline is landing-page grammar; on the one screen the owner has already opened the
+            application to reach, it tells them nothing they do not know. Status pages keep their kicker,
+            because "SETTING UP" over a headline is a state and not a masthead.</para>
+            <para>The headline carried a hard line break, which is the one thing <see cref="T:Orchard.Mirror.Shell.TextFlow"/>
+            exists to decide, and a comma splice with it.</para>
+            <para>The body now says what the three steps are. It used to be one sentence and a promise,
+            which left most of the window empty and answered none of the questions somebody plugging in a
+            phone for the first time actually has.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.CablePage">
+            <summary>Waiting for a cable, because AMFI is reachable over USB and nothing else.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.OnPaintBackground(System.Windows.Forms.PaintEventArgs)">
+            <summary>
+            Suppressed: every pixel is overpainted by the light field before anything else is drawn.
+            </summary>
+            <remarks>
+            Without this the buffer is cleared to the background colour and then covered completely,
+            which is a full-surface fill per frame for no visible result.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.OnDpiChangedAfterParent(System.EventArgs)">
+            <summary>
+            Rebuild everything sized against the display when the window moves to a different one.
+            </summary>
+            <remarks>
+            There was no handler for this at all, so dragging the window between displays of different
+            scale left type sized for the one it started on.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.OnboardingView.Motion">
+            <summary>What is currently moving, if anything.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Idle">
+            <summary>
+            Stop repainting until something asks for motion again.
+            </summary>
+            <remarks>
+            The timer used to be stopped in exactly one place, after a reveal finished, so the opening
+            page and any page reporting a failure it had already given up on repainted the whole surface
+            sixty times a second indefinitely.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Wake">
+            <summary>Repaint once, and keep repainting only while something is actually moving.</summary>
+            <remarks>
+            A settled page now costs nothing at all. It used to keep a slow timer running for ever so the
+            light behind the glass could drift; with a flat surface there is nothing left to drift, so a
+            page that has stopped genuinely stops.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.PaintSurface(System.Drawing.Graphics)">
+            <summary>
+            Fill the surface: one near-black, lifted very slightly at the top.
+            </summary>
+            <remarks>
+            The falloff spans about ten values out of 255. That is below the threshold at which anyone
+            reads it as a gradient, and above the one at which a tall window reads as a flat void. It is
+            the whole of what replaced four drifting lobes, a scaled bitmap and a scrim.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.PaintPhase(System.Drawing.Graphics,System.Int32)">
+            <summary>
+            Draw the page from boxes that were worked out beforehand, rather than accumulating a running
+            y down the page and hoping.
+            </summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.DrawLines(System.Drawing.Graphics,Orchard.Mirror.Shell.TextLayout,Orchard.Mirror.Shell.TypeStyle,Orchard.Mirror.Shell.Box,System.Drawing.Color,System.Int32,System.Boolean)">
+            <summary>
+            Draw each line at the top the layout gave it.
+            </summary>
+            <remarks>
+            One call per line into a box of its own, so nothing can bleed past the block it belongs to.
+            The single call this replaces was given <c>NoClip</c> and word trimming, which between them
+            let the last partial line overhang the buttons while the rest of the text disappeared with
+            no mark at all.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.PaintRows(System.Drawing.Graphics,System.Collections.Generic.IReadOnlyList{Orchard.Mirror.Shell.RowBoxes},Orchard.Mirror.Shell.TypeScale,System.Int32)">
+            <summary>
+            Draw the feature rows: a tinted mark, a bold line, and a quieter line beside it.
+            </summary>
+            <remarks>
+            The marks are drawn in the accent, which is the one place on this surface colour is used for
+            anything but the primary action. That is deliberate and is how the pattern reads on Apple's
+            own welcome sheets: the eye goes down the column of coloured marks first and picks up the
+            text from whichever one it stopped at.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.DrawTracked(System.Drawing.Graphics,Orchard.Mirror.Shell.TextLayout,Orchard.Mirror.Shell.TypeStyle,Orchard.Mirror.Shell.Box,System.Drawing.Color,System.Int32,System.Boolean)">
+            <summary>
+            Draw a kicker with real tracking, one glyph at a time.
+            </summary>
+            <remarks>
+            <para>The previous version faked letter-spacing by joining the characters with spaces, which
+            gives a full space glyph between every letter and three of them at a word boundary — uneven
+            by construction and not fixable by tuning. Advancing by a fraction of the em is what tracking
+            actually is.</para>
+            <para><b>The space is measured indirectly, and has to be.</b> <c>GenericTypographic</c>
+            discards trailing whitespace, so measuring <c>" "</c> through it returns zero and a tracked
+            word boundary collapses to nothing but the tracking. That was invisible while tracking was
+            wide — the gap was wrong but there was a gap — and turned "SETTING UP" into "SETTINGUP" the
+            moment it was narrowed. Measuring a space between two glyphs and subtracting them is the way
+            to get its real advance out of GDI+.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Scale">
+            <summary>The type scale for this surface, measured in both directions.</summary>
+            <remarks>
+            One place, because three call sites each building their own is three chances for a label to
+            be set at a different scale from the box the layout gave it.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.CentreOffset(System.Double,System.Double,System.Double,System.Double)">
+            <summary>How far right a left-aligned group moves to sit centred in its column.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Advance(System.Drawing.Graphics,System.Drawing.Font,System.String)">
+            <summary>How far the pen moves for a string, with no layout padding either side.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Resolve(Orchard.Mirror.Shell.ColorRole)">
+            <summary>Resolve a named colour against this surface's palette.</summary>
+            <remarks>
+            Warning is finally reachable. The view carried this amber and a public Tone field for exactly
+            this purpose, and the field was written from fifteen call sites and read from none — so a
+            retry, a failure and ordinary progress were all the same white.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Mark(Orchard.Mirror.Shell.GlyphRole)">
+            <summary>Pick the drawn mark for a routed glyph.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.PaintSpinner(System.Drawing.Graphics,System.Drawing.PointF,System.Single,System.Int32)">
+            <summary>A ring that turns while Orchard is working.</summary>
+            <remarks>
+            Whether it is drawn at all is the router's decision, not this method's \u2014 it used to take a
+            <c>stopped</c> flag whose only call site passed the literal <c>false</c>.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.PaintMark(System.Drawing.Graphics,System.Drawing.Rectangle,Orchard.Mirror.Windows.OnboardingView.Glyph,System.Drawing.Color,System.Single)">
+            <summary>
+            The mark above each page's title.
+            </summary>
+            <remarks>
+            It used to sit inside a 72-pixel circle of glass, with a specular highlight and a rim. The
+            circle carried no information — it was there to give the mark somewhere to live — and at that
+            size it was the first thing on the page the eye landed on, ahead of the headline. The mark is
+            now drawn on its own at roughly half the size, so the first thing read is the sentence saying
+            what is happening.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.PaintButtons(System.Drawing.Graphics,System.String,System.String,System.Int32)">
+            <summary>
+            Draw the primary action as a solid shape, and the secondary as a real control.
+            </summary>
+            <remarks>
+            <para>The primary used to be a lens: no fill at all, the backdrop drawn through it in four
+            bands of increasing magnification, with two bright arcs standing in for a specular highlight.
+            It was the most carefully built thing on the surface and the least usable — a white label on
+            whatever colour happened to have drifted underneath it, which at its worst was around two to
+            one. The only job a primary action has is to be obviously the primary action.</para>
+            <para>The secondary was 50%-opacity text with no box, no rule and no hover state, which is
+            indistinguishable from a caption. It now takes a wash under the pointer, so it reads as
+            something that can be pressed before it is pressed.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.PaintPrimary(System.Drawing.Graphics,System.Drawing.Rectangle,System.String,System.Int32)">
+            <summary>
+            Draw the primary action with the material a platform button actually has.
+            </summary>
+            <remarks>
+            <para>One flat rectangle of saturated colour is not what a button looks like on any desktop.
+            It is what an <i>unstyled</i> one looks like, and that was the first version of this: correct
+            contrast, correct shape, no material at all.</para>
+            <para>Every shipping toolkit gives its accent button the same three things, and every one of
+            them is nearly invisible taken by itself. A slight vertical gradient, so the face is not one
+            dead value. A lighter hairline just inside the top edge, where a light source above would
+            catch. A darker line around the outside, which seats the shape against the surface instead of
+            letting it float like a sticker. Held down, the gradient reverses and the label moves one
+            pixel with it, which is what makes a press read as the surface going in rather than merely
+            changing colour.</para>
+            <para>This is not the glass that was removed. That was a fill-less lens magnifying the
+            backdrop through four bands with specular crescents at its corners, and its problem was that
+            it obscured its own label. A gradient of eighteen values across a solid fill is the ordinary
+            way a button is drawn.</para>
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Shade(System.Drawing.Color,System.Double)">
+            <summary>Lighten a colour towards white, or with a negative amount darken it towards black.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Blend(System.Drawing.Color,System.Drawing.Color,System.Double)">
+            <summary>Mix two colours, for the hover transition.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.CornerRadius(System.Drawing.Rectangle)">
+            <summary>
+            A button's corner radius: soft, but nothing like a capsule.
+            </summary>
+            <remarks>
+            Apple's welcome sheet uses a 15-point radius on a button around 50 points tall. Three tenths
+            of the height reproduces that ratio at whatever size this window happens to be, which matters
+            because this one is resizable and theirs is not.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.OnboardingView.Rounded(System.Drawing.Rectangle,System.Int32)">
+            <summary>
+            A rounded rectangle whose corners are continuous rather than circular.
+            </summary>
+            <remarks>
+            <para>This is the shape Apple means by <c>RoundedRectangle(cornerRadius:style:.continuous)</c>,
+            and it is most of why their controls look softer than the same radius drawn with arcs. A
+            circular corner meets the straight edge with its curvature jumping from zero to 1/r in one
+            step; the eye reads that discontinuity as a slight pinch at the four points where the
+            straight run begins, even when it cannot name what it is seeing.</para>
+            <para>The curve here starts further along each edge — a little over one and a half radii —
+            and uses a cubic whose control points sit nearer the corner, so curvature arrives gradually.
+            It is an approximation of a superellipse rather than the real thing, which would need a
+            higher-order curve for a difference nobody can see at these sizes.</para>
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.Palette">
+            <summary>
+            Every colour the window's own surfaces use, in one table.
+            </summary>
+            <remarks>
+            <para>The setup surface and the control strip each carried a private copy of what were supposed
+            to be the same greys, and they had already drifted apart: two secondary inks, two panel darks,
+            two near-blacks. Naming them once is the only arrangement that stays true.</para>
+            <para><b>The surface is flat and neutral on purpose.</b> What was here before was a field of four
+            saturated lobes drifting behind everything — two of them violet, one of them exactly
+            <c>#A855F7</c> — rendered into a small bitmap and scaled up on every frame. Two objections, and
+            the second is the one that mattered. It cost a full-surface composite per frame to say nothing.
+            And a violet-to-teal wash is the single most recognisable mark of an interface that was
+            decorated rather than designed, which is a poor first impression for a tool whose whole claim is
+            that it does something difficult correctly.</para>
+            <para>Colour now appears in exactly three places: the primary action, and the two states that
+            have to be distinguishable from ordinary progress at a glance. Everywhere else is grey.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.Surface">
+            <summary>The surface everything is drawn on.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.SurfaceLift">
+            <summary>
+            The top of the surface's falloff. Two and a half percent lighter than <see cref="F:Orchard.Mirror.Windows.Palette.Surface"/>,
+            which is enough to keep a tall window from reading as a flat void and far too little to be
+            noticed as a gradient.
+            </summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.Panel">
+            <summary>The control strip, which sits over live video and so is opaque.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.TextPrimary">
+            <summary>Headlines and anything that must be read first.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.TextSecondary">
+            <summary>Body copy. Around 8:1 against <see cref="F:Orchard.Mirror.Windows.Palette.Surface"/>.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.TextTertiary">
+            <summary>Labels and captions, the quietest ink that still passes for body text at this size.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.Accent">
+            <summary>The primary action. Apple's system blue, because the thing on screen is an iPhone.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.AccentHot">
+            <summary>The primary action under the pointer.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.AccentDown">
+            <summary>The primary action while it is held.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.Warning">
+            <summary>Working, but not as intended.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.Failure">
+            <summary>Stopped.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.Hairline">
+            <summary>A separating line, or the edge of a panel.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.HairlineStrong">
+            <summary>The same line where it has to be seen against video rather than against the surface.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.Palette.HoverWash">
+            <summary>The wash under a hovered control that has no fill of its own.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.Program.Fail(System.String,System.Exception)">
+            <summary>
+            Record what went wrong somewhere findable, and make sure no agent outlives the crash.
+            </summary>
+            <remarks>
+            Deliberately best-effort and synchronous. Anything that awaits here may never resume, which
+            is the same mistake the window's own close path used to make.
+            </remarks>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.ToastWindow">
+            <summary>
+            The small self-dismissing note that appears over a running mirror.
+            </summary>
+            <remarks>
+            <para>This is the surface <see cref="T:Orchard.Mirror.Shell.StatusRouter"/> has been routing to since it was written.
+            Until now nothing drew one, so everything the router judged routine — the phone locking, sound
+            starting, a reconnection that succeeded — was silent. Silent was the right behaviour while the
+            only alternative was covering live video with a full-surface panel, but it meant the mirror
+            never acknowledged anything that did not stop it working.</para>
+            <para>An owned top-level window, for the reason recorded on <see cref="T:Orchard.Mirror.Windows.ControlStripWindow"/>:
+            DWM composes the video's flip-model swap chain for its own HWND independently of z-order within
+            the parent, so a sibling control would be painted and then buried. An owned window's
+            <see cref="P:System.Windows.Forms.Form.Opacity"/> is composited by DWM, so the fade never touches the present path.</para>
+            <para>It is also click-through. A note that appears over the phone for two seconds must not be
+            able to swallow a tap meant for the screen underneath it, and a toast has nothing to click.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.ToastWindow.WsExTransparent">
+            <summary>Never take the pointer. The phone is underneath.</summary>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.ToastWindow.MotionInterval">
+            <summary>How often the fade steps. The same interval as the control strip.</summary>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.ToastWindow.ShowWithoutActivation">
+            <summary>Never steal focus from the phone by appearing.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ToastWindow.Attach">
+            <summary>Become the mirror window's toast surface.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ToastWindow.Present(Orchard.Mirror.Shell.StatusPresentation)">
+            <summary>
+            Offer one routed presentation.
+            </summary>
+            <remarks>
+            Handed everything, not just toasts: a full-surface status dismisses whatever note is up,
+            which is a decision <see cref="T:Orchard.Mirror.Shell.ToastPolicy"/> owns rather than one each caller repeats.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ToastWindow.Clear">
+            <summary>Drop any note immediately. For teardown, where there is nothing left to fade over.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ToastWindow.Reposition">
+            <summary>Sit across the bottom of the mirror window, clear of the rounded corners.</summary>
+            <remarks>
+            The bottom because the control strip owns the top. Two things fading in and out of the same
+            band would collide precisely when both are wanted — a status arriving while the pointer is
+            over the controls is the ordinary case, not the rare one.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ToastWindow.PaintGlyph(System.Drawing.Graphics,Orchard.Mirror.Shell.StatusPresentation,System.Drawing.Rectangle)">
+            <summary>
+            The mark beside the words, stroked in the same idiom as the control strip's controls.
+            </summary>
+            <remarks>
+            Colour comes from the presentation's accent, which follows severity alone, so the same
+            seriousness always looks the same here as it does on the full surface.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ToastWindow.DesiredWidth">
+            <summary>
+            Measured against a screen device context rather than this window's own.
+            </summary>
+            <remarks>
+            <c>CreateGraphics</c> would force the handle into existence, and the first status can be
+            routed here before <see cref="M:Orchard.Mirror.Windows.ToastWindow.Attach"/> has run — which would create the window before it
+            has an owner, briefly as a top-level one of its own.
+            </remarks>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.ToastWindow.Step">
+            <summary>Advance the fade, and show or hide the window as it crosses either end.</summary>
+        </member>
+        <member name="T:Orchard.Mirror.Windows.TypeSetter">
+            <summary>
+            Turns the device-independent type scale into real fonts, and owns the one place display scale is
+            applied.
+            </summary>
+            <remarks>
+            <para>The single multiplication by <see cref="P:Orchard.Mirror.Windows.TypeSetter.DpiScale"/> is deliberately the only one. Sizing
+            type in points while laying it out in device pixels applied the display scale to the text and
+            not to the boxes around it, which is what made everything wrap and clip on a scaled display.
+            Fonts here are built with <see cref="F:System.Drawing.GraphicsUnit.Pixel"/> from an already-scaled size, so the
+            text and its box are in the same units by construction.</para>
+            <para>Fonts are cached because these are GDI handles and this paints repeatedly; the cache is
+            keyed by the rounded pixel size so a live resize drag reuses entries instead of destroying and
+            rebuilding every handle on each <c>WM_SIZE</c>.</para>
+            </remarks>
+        </member>
+        <member name="F:Orchard.Mirror.Windows.TypeSetter.DisplayLadder">
+            <summary>
+            Preferred families, most specific first, ending in one that is always present.
+            </summary>
+            <remarks>
+            A missing family does not throw: GDI+ silently substitutes Microsoft Sans Serif, so asking
+            for something absent is invisible at the call site and obvious on screen. "Segoe UI Variable"
+            only exists from Windows 11 22000, and the previous code also asked for
+            "Segoe UI Variable Text Semib", which is not a family name at all and could therefore never
+            have resolved.
+            </remarks>
+        </member>
+        <member name="P:Orchard.Mirror.Windows.TypeSetter.DpiScale">
+            <summary>Device pixels per device-independent pixel, from the window's current DPI.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.TypeSetter.SetDpi(System.Double)">
+            <summary>Point the setter at a new display scale, dropping anything sized for the old one.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.TypeSetter.Px(System.Double)">
+            <summary>Convert a length in device-independent pixels to device pixels.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.TypeSetter.Rect(Orchard.Mirror.Shell.Box)">
+            <summary>Convert a box in device-independent pixels to a device-pixel rectangle.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.TypeSetter.Font(Orchard.Mirror.Shell.TypeStyle)">
+            <summary>The font for one style, at this display scale.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.TypeSetter.Measure(System.Drawing.Graphics,Orchard.Mirror.Shell.TypeStyle)">
+            <summary>Measure a string the way it will be drawn, in device-independent pixels.</summary>
+        </member>
+        <member name="M:Orchard.Mirror.Windows.TypeSetter.Resolve(System.Boolean)">
+            <summary>
+            Pick the first installed family on the ladder for this optical size.
+            </summary>
+            <remarks>
+            Checked against the installed set rather than assumed, so the fallback is a decision this
+            code makes rather than one GDI+ makes silently on a machine nobody tested.
+            </remarks>
+        </member>
+        <member name="T:ApplicationConfiguration">
+            <summary>
+             Bootstrap the application configuration.
+            </summary>
+        </member>
+        <member name="M:ApplicationConfiguration.Initialize">
+            <summary>
+             Bootstrap the application as follows:
+             <code>
+             global::System.Windows.Forms.Application.EnableVisualStyles();
+             global::System.Windows.Forms.Application.SetCompatibleTextRenderingDefault(false);
+             global::System.Windows.Forms.Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+            </code>
+            </summary>
+        </member>
+    </members>
+</doc>
