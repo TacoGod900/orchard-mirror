@@ -27,7 +27,7 @@ The whole paid loop, and what's built vs. what you wire up.
   match, so a key the server issues *will* be accepted by the app. (Verified by running both.)
 
 ## What you do (in order)
-1. **Stripe account + test products** — see `../LAUNCH_PACK.md` Part 3. Create Monthly/Yearly/Lifetime
+1. **Stripe account + test products** — create Monthly/Yearly/Lifetime
    products in **test mode**, grab their Price IDs and Payment Links.
 2. **Wire the website** — paste the three Payment Links into `../index.html` (replace the
    `REPLACE_WITH_STRIPE_TEST_LINK_*` placeholders).

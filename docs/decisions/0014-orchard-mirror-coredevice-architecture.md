@@ -20,13 +20,13 @@ against a real device, but its limits are structural rather than defects:
   pointer ring is permanently visible, and Windows cannot toggle it.
 
 A separate research track asked whether Orchard could instead speak Apple's private **iPhone
-Mirroring** protocol and obtain a genuinely locked-keybag session. That track is **closed**, with a
-firm negative result recorded in `docs/orchard-mirror/KEYBAG_IDENTITY_FINDINGS_2026-07-30.md`: iOS
+Mirroring** protocol and obtain a genuinely locked-keybag session. That track is **closed** with a
+firm negative result: iOS
 resolves the proposed Mac as an existing same-account IDS device *before* it consumes the passcode, and
 `MacUnlockPhone` pairing is authentication type 5, which is in the `requiresAttestation` set and binds
 to a `localAttestedLTK` produced by Apple's keystore. A software identity generated on Windows cannot
 satisfy that path. No composable public feature reproduces locked-keybag plus display-off plus full UI
-plus system-wide input (`docs/orchard-mirror/LOCKED_SCREEN_PATHS_2026-07-30.md`).
+plus system-wide input.
 
 Since iOS 17, Apple's **CoreDevice** developer services expose exactly the two capabilities Mirror
 needs, over an RSD tunnel: `DisplayService` streams the device's real screen as RTP/HEVC, and
