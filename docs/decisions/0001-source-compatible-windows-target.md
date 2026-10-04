@@ -78,7 +78,7 @@ Every API and application capability is placed in one of four execution disposit
 - **Apple-validation-only:** the application can reference the capability, but its real build or execution occurs only in the Apple plane.
 - **Unsupported:** compilation or launch fails with a stable diagnostic and remediation.
 
-Disposition is distinct from conformance qualification. A locally executable behavior may be `Full` or `Constrained` depending on its evidence and known differences. The qualification rules are defined in `docs/QUALITY_AND_COMPATIBILITY.md`.
+Disposition is distinct from conformance qualification. A locally executable behavior may be `Full` or `Constrained` depending on its evidence and known differences.
 
 Silent no-ops, invented success responses, and unqualified compatibility percentages are forbidden. Security-, identity-, health-, payment-, entitlement-, and hardware-backed APIs cannot be represented as real merely because a local test double exists.
 

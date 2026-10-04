@@ -3,12 +3,8 @@
 Status: Accepted  
 Date: 2026-08-01  
 Decision owners: Project owner  
-Required approvers: Project owner (recorded in-session, 2026-08-01)  
 Relates to: ADR 0011 (CPU engine licence constraint) and `docs/CLEAN_ROOM_AND_LEGAL.md`.
 
-> **Branch note.** This branch is based on `main`, which carries ADRs 0001-0005. ADRs 0006-0013 exist
-> on `feature/tooling-and-ui-kernel` and are not visible here. 0014 is nonetheless the next free number
-> project-wide, so it stays collision-free after any merge.
 
 ## Context
 

@@ -1,8 +1,5 @@
 # Project Orchard Architecture
 
-Status: Target architecture  
-Last updated: 2026-07-18  
-Owners: Orchard Architecture Council, Security, and Clean-Room Governance
 
 ## 1. Purpose
 
@@ -12,17 +9,9 @@ This document defines the production architecture, trust boundaries, subsystem c
 
 [ADR 0002](decisions/0002-native-application-process-and-local-protocol.md)
 is accepted for the native vertical slice and requires further production
-hardening. The Orchard bundle/runtime ABI, UI kernel/render graph, and LSP/DAP
-boundaries remain proposed in [ADR 0003](decisions/0003-application-bundle-and-runtime-abi.md),
-[ADR 0004](decisions/0004-ui-kernel-and-render-graph-boundary.md), and
-[ADR 0005](decisions/0005-language-server-and-debug-adapter-boundaries.md).
+hardening. The bundle/runtime ABI, UI kernel/render graph and LSP/DAP boundaries are not yet decided.
 
-Related controls are defined in:
-
-- [Clean-room and legal operating model](CLEAN_ROOM_AND_LEGAL.md);
-- [Threat model](THREAT_MODEL.md);
-- [Quality, compatibility, and release policy](QUALITY_AND_COMPATIBILITY.md);
-- [Diagnostic catalogue](DIAGNOSTICS.md).
+Diagnostic codes are listed in the [diagnostic catalogue](DIAGNOSTICS.md).
 
 ## 2. Architectural assertions
 
@@ -107,7 +96,7 @@ The following current details are explicitly non-production:
 - inferring debugger or language-server readiness from successful executable
   launch probes.
 
-Focused evidence is recorded in [CURRENT_STATUS.md](CURRENT_STATUS.md). Code may
+Code may
 be retained as a test fixture or migration scaffold, but it must not constrain
 the production compiler, process model, compatibility model, or renderer.
 
@@ -354,7 +343,7 @@ Contracts are defined in dedicated schema packages, tested with compatibility fi
 
 ## 10. Compatibility model
 
-Execution disposition and conformance qualification are separate dimensions. Disposition answers where a behavior can execute: local, simulated, Apple-validation-only, or unavailable. Qualification answers how much evidence supports it: full, constrained, simulated, Apple validation required, or unavailable, as defined by the [quality and compatibility policy](QUALITY_AND_COMPATIBILITY.md).
+Execution disposition and conformance qualification are separate dimensions. Disposition answers where a behavior can execute: local, simulated, Apple-validation-only, or unavailable. Qualification answers how much evidence supports it: full, constrained, simulated, Apple validation required, or unavailable.
 
 A raw symbol count is insufficient. Each API or behavior records independently:
 
